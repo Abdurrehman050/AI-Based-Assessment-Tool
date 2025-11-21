@@ -6,6 +6,35 @@ import Candidate from "../models/Candidate.js";
 import Exam from "../models/Exam.js";
 import ExamSubmission from "../models/ExamSubmission.js";
 
+// Helper: extract candidate answers from a provided exam object
+export function extractAnswersFromExam(exam) {
+  const mcqAnswers = [];
+  const shortAnswers = [];
+  if (!exam || !exam.questions) return { mcqAnswers, shortAnswers };
+
+  const { mcqs = [], shortQuestions = [] } = exam.questions;
+
+  if (Array.isArray(mcqs)) {
+    for (const q of mcqs) {
+      const sel = q.selectedOption ?? q.selected ?? q.response ?? q.choice ?? q.selectedAnswer ?? q.studentAnswer;
+      if (sel !== undefined && sel !== null) {
+        mcqAnswers.push({ questionId: q._id || q.id, selectedOption: sel });
+      }
+    }
+  }
+
+  if (Array.isArray(shortQuestions)) {
+    for (const q of shortQuestions) {
+      const txt = q.answerText ?? q.studentAnswer ?? q.response ?? q.responseText ?? q.selectedAnswer ?? q.student_answer;
+      if (txt !== undefined && txt !== null) {
+        shortAnswers.push({ questionId: q._id || q.id, answerText: txt });
+      }
+    }
+  }
+
+  return { mcqAnswers, shortAnswers };
+}
+
 // ✅ Register Candidate
 export const registerCandidate = asyncHandler(async (req, res) => {
   const { username, email, password, institution } = req.body;
@@ -109,13 +138,50 @@ export const getExamByKey = asyncHandler(async (req, res) => {
 
 // ✅ Submit Exam
 export const submitExam = asyncHandler(async (req, res) => {
-  const { examId, mcqAnswers, shortAnswers } = req.body;
+  const { examId, exam, mcqAnswers, shortAnswers } = req.body;
+
+  // Accept either examId or an exam object containing _id
+  const id = examId || (exam && (exam._id || exam.id));
+  if (!id) {
+    res.status(400);
+    throw new Error("`examId` or `exam._id` is required in request body");
+  }
+
+  // ensure the exam exists
+  const examExists = await Exam.findById(id);
+  if (!examExists) {
+    res.status(404);
+    throw new Error("Exam not found");
+  }
+
+  let mcqList = Array.isArray(mcqAnswers) ? mcqAnswers : [];
+  let shortList = Array.isArray(shortAnswers) ? shortAnswers : [];
+
+  // Try to extract answers from a full `exam` object if provided
+  if ((mcqList.length === 0 || shortList.length === 0) && exam) {
+    const extracted = extractAnswersFromExam(exam);
+    if (mcqList.length === 0 && Array.isArray(extracted.mcqAnswers) && extracted.mcqAnswers.length) {
+      mcqList = extracted.mcqAnswers;
+    }
+    if (shortList.length === 0 && Array.isArray(extracted.shortAnswers) && extracted.shortAnswers.length) {
+      shortList = extracted.shortAnswers;
+    }
+  }
+
+  // If no answers were provided, log the incoming body for debugging and return a clear error
+  if (mcqList.length === 0 && shortList.length === 0) {
+    console.warn("submitExam called with no answers. Request body:", JSON.stringify(req.body));
+    res.status(400);
+    throw new Error(
+      "No answers provided. Please include `mcqAnswers` and/or `shortAnswers` arrays in the request body."
+    );
+  }
 
   const submission = await ExamSubmission.create({
-    exam: examId,
+    exam: id,
     candidate: req.user._id,
-    mcqAnswers,
-    shortAnswers,
+    mcqAnswers: mcqList,
+    shortAnswers: shortList,
     isSubmitted: true,
   });
 
@@ -123,6 +189,7 @@ export const submitExam = asyncHandler(async (req, res) => {
     message: "Exam submitted successfully",
     submission,
   });
+
   await Candidate.findByIdAndUpdate(req.user._id, {
     $push: { attemptedExams: submission._id },
   });
