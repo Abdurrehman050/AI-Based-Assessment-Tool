@@ -9,6 +9,7 @@ import Teacher from "../models/Teacher.js";
 import Exam from "../models/Exam.js";
 import ExamSubmission from "../models/ExamSubmission.js";
 import generateExamKey from "../utils/generateExamKey.js";
+import Candidate from "../models/Candidate.js";
 
 // @desc    Register teacher
 // @route   POST /api/v1/teachers/register
@@ -349,4 +350,90 @@ const logoutTeacher = asyncHandler(async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI };
+// @desc    Manually grade a submission (teacher-triggered)
+// @route   POST /api/v1/teachers/submissions/:id/grade-manual
+// @access  Private (teacher)
+const gradeSubmissionManual = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== "teacher") {
+    res.status(403);
+    throw new Error("Only teachers can grade submissions");
+  }
+
+  const submissionId = req.params.id;
+  const { shortAnswers: shortGrades } = req.body; // expected [{ questionId, score, feedback }]
+
+  const submission = await ExamSubmission.findById(submissionId).populate("exam");
+  if (!submission) {
+    res.status(404);
+    throw new Error("Submission not found");
+  }
+
+  const exam = submission.exam;
+  if (!exam || String(exam.createdBy) !== String(req.user._id)) {
+    res.status(403);
+    throw new Error("Not authorized to grade this submission");
+  }
+
+  // Apply human grades
+  let shortScore = 0;
+  if (Array.isArray(shortGrades)) {
+    for (const g of shortGrades) {
+      const idx = submission.shortAnswers.findIndex((s) => String(s.questionId) === String(g.questionId));
+      if (idx !== -1) {
+        const score = typeof g.score === "number" ? g.score : Number(g.score) || 0;
+        submission.shortAnswers[idx].humanScore = score;
+        submission.shortAnswers[idx].humanFeedback = g.feedback || "";
+      }
+    }
+  }
+
+  // compute MCQ score
+  let mcqScore = 0;
+  if (Array.isArray(submission.mcqAnswers) && Array.isArray(exam.questions?.mcqs)) {
+    for (const ans of submission.mcqAnswers) {
+      const q = exam.questions.mcqs.find((x) => String(x._id) === String(ans.questionId));
+      if (q && ans.selectedOption === q.answer) mcqScore += 1;
+    }
+  }
+
+  // compute short score: prefer humanScore if provided, else aiScore
+  for (const s of submission.shortAnswers) {
+    if (typeof s.humanScore === "number") shortScore += s.humanScore;
+    else if (typeof s.aiScore === "number") shortScore += s.aiScore;
+  }
+
+  submission.score = mcqScore + shortScore;
+  submission.checkedByAI = submission.checkedByAI || false;
+  submission.isGraded = true;
+  submission.gradedBy = req.user._id;
+  submission.feedback = (submission.feedback || "") + "\nManually graded by teacher";
+  await submission.save();
+
+  res.json({ message: "Submission manually graded", submission });
+});
+
+// @desc    Get all submissions for an exam (teacher view)
+// @route   GET /api/v1/teachers/exams/:examId/submissions
+// @access  Private (teacher)
+const getExamSubmissions = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== "teacher") {
+    res.status(403);
+    throw new Error("Only teachers can view submissions");
+  }
+
+  const examId = req.params.examId;
+  const exam = await Exam.findById(examId);
+  if (!exam) {
+    res.status(404);
+    throw new Error("Exam not found");
+  }
+  if (String(exam.createdBy) !== String(req.user._id)) {
+    res.status(403);
+    throw new Error("Not authorized to view this exam's submissions");
+  }
+
+  const submissions = await ExamSubmission.find({ exam: examId }).populate("candidate", "username email").sort({ createdAt: -1 });
+  res.json({ examId, submissions });
+});
+
+export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions };

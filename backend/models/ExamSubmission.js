@@ -22,6 +22,8 @@ const examSubmissionSchema = new Schema(
         answerText: { type: String },
         aiScore: { type: Number, default: null },
         aiFeedback: { type: String, default: "" },
+        humanScore: { type: Number, default: null },
+        humanFeedback: { type: String, default: "" },
       },
     ],
     gradedBy: { type: Schema.Types.ObjectId, ref: "Teacher", default: null },

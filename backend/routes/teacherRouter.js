@@ -8,6 +8,8 @@ import {
   logoutTeacher,
   gradeSubmissionAI,
   gradeExamSubmissionsAI,
+  gradeSubmissionManual,
+  getExamSubmissions,
 } from "../controllers/teacherCtrl.js";
 import isAuthenticated from "../middlewares/isAuth.js";
 
@@ -45,6 +47,20 @@ teacherRouter.post(
   "/api/v1/teachers/exams/:examId/grade-ai",
   isAuthenticated,
   gradeExamSubmissionsAI
+);
+
+// Manually grade a submission (teacher)
+teacherRouter.post(
+  "/api/v1/teachers/submissions/:id/grade-manual",
+  isAuthenticated,
+  gradeSubmissionManual
+);
+
+// Get submissions for an exam (teacher)
+teacherRouter.get(
+  "/api/v1/teachers/exams/:examId/submissions",
+  isAuthenticated,
+  getExamSubmissions
 );
 
 // @route   POST /api/v1/teachers/logout

@@ -194,3 +194,29 @@ export const submitExam = asyncHandler(async (req, res) => {
     $push: { attemptedExams: submission._id },
   });
 });
+
+// @desc    Get a submission by ID (candidate or teacher)
+// @route   GET /api/v1/candidates/submissions/:id
+// @access  Private (candidate or teacher)
+export const getSubmissionById = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  const submission = await ExamSubmission.findById(id).populate('exam').populate('candidate', 'username email');
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  // If user is a candidate, ensure they own the submission
+  if (req.user.role === 'candidate' && String(submission.candidate._id) !== String(req.user._id)) {
+    res.status(403);
+    throw new Error('Not authorized to view this submission');
+  }
+
+  // If user is a teacher, ensure they created the exam
+  if (req.user.role === 'teacher' && String(submission.exam.createdBy) !== String(req.user._id)) {
+    res.status(403);
+    throw new Error('Not authorized to view this submission');
+  }
+
+  res.json({ submission });
+});
