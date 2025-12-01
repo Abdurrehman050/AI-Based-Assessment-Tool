@@ -10,6 +10,8 @@ import {
   gradeExamSubmissionsAI,
   gradeSubmissionManual,
   getExamSubmissions,
+  getExamReports,
+  getSubmissionReports,
 } from "../controllers/teacherCtrl.js";
 import isAuthenticated from "../middlewares/isAuth.js";
 
@@ -61,6 +63,20 @@ teacherRouter.get(
   "/api/v1/teachers/exams/:examId/submissions",
   isAuthenticated,
   getExamSubmissions
+);
+
+// Reports: exam-level aggregated stats and filters
+teacherRouter.get(
+  "/api/v1/teachers/reports/exams",
+  isAuthenticated,
+  getExamReports
+);
+
+// Reports: submission-level filtering and pagination
+teacherRouter.get(
+  "/api/v1/teachers/reports/submissions",
+  isAuthenticated,
+  getSubmissionReports
 );
 
 // @route   POST /api/v1/teachers/logout

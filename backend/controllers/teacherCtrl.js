@@ -10,6 +10,7 @@ import Exam from "../models/Exam.js";
 import ExamSubmission from "../models/ExamSubmission.js";
 import generateExamKey from "../utils/generateExamKey.js";
 import Candidate from "../models/Candidate.js";
+import mongoose from "mongoose";
 
 // @desc    Register teacher
 // @route   POST /api/v1/teachers/register
@@ -434,6 +435,110 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 
   const submissions = await ExamSubmission.find({ exam: examId }).populate("candidate", "username email").sort({ createdAt: -1 });
   res.json({ examId, submissions });
+});
+
+// @desc    Reports: exam-level stats and filtering
+// @route   GET /api/v1/teachers/reports/exams
+// @access  Private (teacher)
+const getExamReports = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== "teacher") {
+    res.status(403);
+    throw new Error("Only teachers can view reports");
+  }
+
+  const { from, to, title, level, questionType, page = 1, limit = 20 } = req.query;
+  const examQuery = { createdBy: req.user._id };
+  if (title) examQuery.title = { $regex: title, $options: "i" };
+  if (level) examQuery.level = level;
+  if (questionType) examQuery.questionType = questionType;
+
+  const exams = await Exam.find(examQuery).sort({ createdAt: -1 }).lean();
+
+  // For each exam compute submission stats (count, gradedCount, avgScore, min/max)
+  const results = [];
+  const subMatchBase = { isSubmitted: true };
+  if (from || to) {
+    subMatchBase.createdAt = {};
+    if (from) subMatchBase.createdAt.$gte = new Date(from);
+    if (to) subMatchBase.createdAt.$lte = new Date(to);
+  }
+
+  for (const ex of exams) {
+    const match = { ...subMatchBase, exam: mongoose.Types.ObjectId(ex._id) };
+    const agg = await ExamSubmission.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$exam",
+          submissionCount: { $sum: 1 },
+          gradedCount: { $sum: { $cond: ["$isGraded", 1, 0] } },
+          avgScore: { $avg: "$score" },
+          minScore: { $min: "$score" },
+          maxScore: { $max: "$score" },
+        },
+      },
+    ]);
+
+    const stats = agg[0] || { submissionCount: 0, gradedCount: 0, avgScore: 0, minScore: 0, maxScore: 0 };
+    results.push({ exam: ex, stats });
+  }
+
+  // simple pagination in-memory
+  const p = Math.max(1, parseInt(page, 10));
+  const l = Math.max(1, parseInt(limit, 10));
+  const paged = results.slice((p - 1) * l, p * l);
+
+  res.json({ total: results.length, page: p, limit: l, data: paged });
+});
+
+// @desc    Reports: submission-level filtering
+// @route   GET /api/v1/teachers/reports/submissions
+// @access  Private (teacher)
+const getSubmissionReports = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== "teacher") {
+    res.status(403);
+    throw new Error("Only teachers can view reports");
+  }
+
+  const { examId, from, to, isGraded, minScore, maxScore, candidateId, page = 1, limit = 20 } = req.query;
+  const query = {};
+  if (examId) query.exam = mongoose.Types.ObjectId(examId);
+  if (candidateId) query.candidate = mongoose.Types.ObjectId(candidateId);
+  if (isGraded === 'true') query.isGraded = true;
+  if (isGraded === 'false') query.isGraded = false;
+  if (from || to) {
+    query.createdAt = {};
+    if (from) query.createdAt.$gte = new Date(from);
+    if (to) query.createdAt.$lte = new Date(to);
+  }
+  if (minScore) query.score = query.score || {}, query.score.$gte = Number(minScore);
+  if (maxScore) query.score = query.score || {}, query.score.$lte = Number(maxScore);
+
+  // Ensure teacher only sees submissions for their exams
+  const teacherExamIds = await Exam.find({ createdBy: req.user._id }).select('_id').lean();
+  const examIds = teacherExamIds.map(e => String(e._id));
+  if (examId) {
+    if (!examIds.includes(String(examId))) {
+      res.status(403);
+      throw new Error('Not authorized to view submissions for this exam');
+    }
+  } else {
+    query.exam = { $in: teacherExamIds.map(e => e._id) };
+  }
+
+  const p = Math.max(1, parseInt(page, 10));
+  const l = Math.max(1, parseInt(limit, 10));
+
+  const submissions = await ExamSubmission.find(query)
+    .populate('candidate', 'username email')
+    .populate('exam', 'title examKey')
+    .sort({ createdAt: -1 })
+    .skip((p - 1) * l)
+    .limit(l)
+    .lean();
+
+  const total = await ExamSubmission.countDocuments(query);
+  res.json({ total, page: p, limit: l, submissions });
 });
 
 export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions };
