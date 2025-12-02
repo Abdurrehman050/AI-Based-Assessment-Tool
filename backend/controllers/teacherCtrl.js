@@ -541,4 +541,4 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
   res.json({ total, page: p, limit: l, submissions });
 });
 
-export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions };
+export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports };
