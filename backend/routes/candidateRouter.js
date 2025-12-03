@@ -12,11 +12,11 @@ import isAuth from "../middlewares/isAuth.js";
 
 const router = express.Router();
 
-router.post("/api/v1/candidates/register", registerCandidate);
-router.post("/api/v1/candidates/login", loginCandidate);
-router.get("/api/v1/candidates/profile", isAuth, getProfile);
-router.get("/api/v1/candidates/exam/:examKey", isAuth, getExamByKey);
-router.post("/api/v1/candidates/submit-exam", isAuth, submitExam);
-router.get("/api/v1/candidates/submissions/:id", isAuth, getSubmissionById);
+router.post("/register", registerCandidate);
+router.post("/login", loginCandidate);
+router.get("/profile", isAuth, getProfile);
+router.get("/exam/:examKey", isAuth, getExamByKey);
+router.post("/submit-exam", isAuth, submitExam);
+router.get("/submissions/:id", isAuth, getSubmissionById);
 
 export default router;

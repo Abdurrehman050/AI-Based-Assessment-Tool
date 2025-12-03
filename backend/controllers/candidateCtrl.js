@@ -6,6 +6,7 @@ import Candidate from "../models/Candidate.js";
 import Exam from "../models/Exam.js";
 import ExamSubmission from "../models/ExamSubmission.js";
 
+
 // Helper: extract candidate answers from a provided exam object
 export function extractAnswersFromExam(exam) {
   const mcqAnswers = [];

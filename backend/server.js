@@ -29,8 +29,10 @@ app.use(
 );
 
 //! Routes
-app.use("/", teacherRouter);
-app.use("/", candidateRouter);
+
+app.use("/api/v1/candidates", candidateRouter);
+app.use("/api/v1/teachers", teacherRouter);
+
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -1,4 +1,3 @@
-// routes/teacherRouter.js
 import express from "express";
 import {
   registerTeacher,
@@ -15,73 +14,21 @@ import {
 } from "../controllers/teacherCtrl.js";
 import isAuthenticated from "../middlewares/isAuth.js";
 
-const teacherRouter = express.Router();
+const router = express.Router();
 
-// @route   POST /api/v1/teachers/register
-// @desc    Register a new teacher
-// @access  Public
-teacherRouter.post("/api/v1/teachers/register", registerTeacher);
+// Public routes
+router.post("/register", registerTeacher);
+router.post("/login", loginTeacher);
 
-// @route   POST /api/v1/teachers/login
-// @desc    Login a teacher
-// @access  Public
-teacherRouter.post("/api/v1/teachers/login", loginTeacher);
+// Private routes
+router.get("/profile", isAuthenticated, getProfile);
+router.post("/create-exam", isAuthenticated, createExam);
+router.post("/submissions/:id/grade-ai", isAuthenticated, gradeSubmissionAI);
+router.post("/exams/:examId/grade-ai", isAuthenticated, gradeExamSubmissionsAI);
+router.post("/submissions/:id/grade-manual", isAuthenticated, gradeSubmissionManual);
+router.get("/exams/:examId/submissions", isAuthenticated, getExamSubmissions);
+router.get("/reports/exams", isAuthenticated, getExamReports);
+router.get("/reports/submissions", isAuthenticated, getSubmissionReports);
+router.post("/logout", isAuthenticated, logoutTeacher);
 
-// @route   GET /api/v1/teachers/profile
-// @desc    Get teacher profile
-// @access  Private
-teacherRouter.get("/api/v1/teachers/profile", isAuthenticated, getProfile);
-
-// @route   POST /api/v1/teachers/create-exam
-// @desc    Create an exam using AI
-// @access  Private
-teacherRouter.post("/api/v1/teachers/create-exam", isAuthenticated, createExam);
-
-// Grade a single submission with AI (teacher only)
-teacherRouter.post(
-  "/api/v1/teachers/submissions/:id/grade-ai",
-  isAuthenticated,
-  gradeSubmissionAI
-);
-
-// Bulk grade all ungraded submissions for an exam
-teacherRouter.post(
-  "/api/v1/teachers/exams/:examId/grade-ai",
-  isAuthenticated,
-  gradeExamSubmissionsAI
-);
-
-// Manually grade a submission (teacher)
-teacherRouter.post(
-  "/api/v1/teachers/submissions/:id/grade-manual",
-  isAuthenticated,
-  gradeSubmissionManual
-);
-
-// Get submissions for an exam (teacher)
-teacherRouter.get(
-  "/api/v1/teachers/exams/:examId/submissions",
-  isAuthenticated,
-  getExamSubmissions
-);
-
-// Reports: exam-level aggregated stats and filters
-teacherRouter.get(
-  "/api/v1/teachers/reports/exams",
-  isAuthenticated,
-  getExamReports
-);
-
-// Reports: submission-level filtering and pagination
-teacherRouter.get(
-  "/api/v1/teachers/reports/submissions",
-  isAuthenticated,
-  getSubmissionReports
-);
-
-// @route   POST /api/v1/teachers/logout
-// @desc    Logout a teacher
-// @access  Private
-teacherRouter.post("/api/v1/teachers/logout", isAuthenticated, logoutTeacher);
-
-export default teacherRouter;
+export default router;
