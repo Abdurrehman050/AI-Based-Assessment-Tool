@@ -40,7 +40,7 @@ const registerTeacher = asyncHandler(async (req, res) => {
   });
 
   res.status(201).json({
-    message: "user created successfully",
+    message: "Teacher registered successfully.",
     _id: teacher._id,
     username: teacher.username,
     email: teacher.email,
