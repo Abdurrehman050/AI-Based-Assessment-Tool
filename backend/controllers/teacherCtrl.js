@@ -81,7 +81,7 @@ const loginTeacher = asyncHandler(async (req, res) => {
   // Store token in HTTP-only cookie
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production", // true on https
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
@@ -173,13 +173,22 @@ The structure must be:
     throw new Error("Failed to read AI response text");
   }
 
-  let generatedExam;
-  try {
-    generatedExam = JSON.parse(text);
-  } catch (err) {
-    console.error("Invalid JSON:", text);
+function extractJSON(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) {
     throw new Error("AI did not return valid JSON");
   }
+  return JSON.parse(match[0]);
+}
+
+let generatedExam;
+try {
+  generatedExam = extractJSON(text);
+} catch (err) {
+  console.error("RAW AI OUTPUT:\n", text);
+  throw new Error("AI did not return valid JSON");
+}
+
 
   const examKey = await generateExamKey(); // ✅ remember to await this since it's async
 
@@ -192,16 +201,70 @@ The structure must be:
     examKey,
     questions: generatedExam,
     createdBy: req.user._id,
+    status: "draft"    // 🔴 not visible to students
+
   });
   await Teacher.findByIdAndUpdate(req.user._id, {
     $push: { exams: exam._id },
   });
   res.status(201).json({
     message: "Exam generated successfully",
-    examKey,
+  examKey: exam.examKey,
     exam,
   });
 });
+  const getExamPreview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Validate ObjectId
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid exam ID" });
+  }
+
+  // Correct query: use _id instead of exam_id
+  const exam = await Exam.findOne({ _id: id, createdBy: req.user._id });
+
+  if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+  res.json({ exam });  // ✅ send exam in object
+});
+const approveExam = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid exam ID" });
+  }
+
+  const exam = await Exam.findOne({ _id: id, createdBy: req.user._id });
+
+  if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+  exam.status = "published";
+  exam.isActive=true;
+  await exam.save();
+
+  res.json({ message: "Exam approved and active", exam });
+});
+// Delete exam
+export const deleteExamController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid exam ID" });
+  }
+
+  const exam = await Exam.findOne({ _id: id, createdBy: req.user._id });
+
+  if (!exam) {
+    return res.status(404).json({ message: "Exam not found" });
+  }
+
+  await Exam.deleteOne({ _id: id });
+
+  res.json({ message: "Exam deleted successfully" });
+});
+
+
 
 // Internal helper: grade a submission document using Gemini and save it
 async function doGradeSubmission(submission, teacherId) {
@@ -464,7 +527,7 @@ const getExamReports = asyncHandler(async (req, res) => {
   }
 
   for (const ex of exams) {
-    const match = { ...subMatchBase, exam: mongoose.Types.ObjectId(ex._id) };
+    const match = { ...subMatchBase, exam: new mongoose.Types.ObjectId(ex._id) };
     const agg = await ExamSubmission.aggregate([
       { $match: match },
       {
@@ -502,8 +565,8 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
 
   const { examId, from, to, isGraded, minScore, maxScore, candidateId, page = 1, limit = 20 } = req.query;
   const query = {};
-  if (examId) query.exam = mongoose.Types.ObjectId(examId);
-  if (candidateId) query.candidate = mongoose.Types.ObjectId(candidateId);
+  if (examId) query.exam = new mongoose.Types.ObjectId(examId);
+  if (candidateId) query.candidate =new mongoose.Types.ObjectId(candidateId);
   if (isGraded === 'true') query.isGraded = true;
   if (isGraded === 'false') query.isGraded = false;
   if (from || to) {
@@ -541,4 +604,4 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
   res.json({ total, page: p, limit: l, submissions });
 });
 
-export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports };
+export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports,getExamPreview,approveExam };

@@ -6,6 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import teacherRouter from "./routes/teacherRouter.js";
 import candidateRouter from "./routes/candidateRouter.js";
+import router from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -32,6 +33,9 @@ app.use(
 
 app.use("/api/v1/candidates", candidateRouter);
 app.use("/api/v1/teachers", teacherRouter);
+app.use("/api/v1/admin", router);
+
+
 
 
 const PORT = process.env.PORT || 8000;

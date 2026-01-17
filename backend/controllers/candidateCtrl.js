@@ -92,11 +92,11 @@ export const loginCandidate = asyncHandler(async (req, res) => {
   );
 
   res.cookie("token", token, {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  httpOnly: true,
+  sameSite: "strict",
+  secure: process.env.NODE_ENV === "production", // use false for localhost
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
   res.json({
     message: "Login successful",
@@ -108,6 +108,15 @@ export const loginCandidate = asyncHandler(async (req, res) => {
   });
 });
 
+// ✅ Logout Candidate
+export const logout = asyncHandler(async (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+  });
+  res.json({ message: "Logged out successfully" });
+});
 // ✅ Get Candidate Profile
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await Candidate.findById(req.user._id)
@@ -221,3 +230,64 @@ export const getSubmissionById = asyncHandler(async (req, res) => {
 
   res.json({ submission });
 });
+
+
+//enter exam by key
+export const enterExamByKey = asyncHandler(async (req, res) => {
+  const { examKey } = req.body;
+
+  // Find exam by key
+  const exam = await Exam.findOne({ examKey });
+  if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+  // Check if exam is active
+  if (!exam.isActive || exam.status !== "published") {
+    return res.status(403).json({ message: "Exam is inactive or not published" });
+  }
+
+  // Optionally, check if candidate already attempted
+  const candidate = await Candidate.findById(req.user._id);
+  const alreadyAttempted = candidate.attemptedExams?.some(
+    (sub) => sub.exam.toString() === exam._id.toString()
+  );
+  if (alreadyAttempted) {
+    return res.status(400).json({ message: "You have already attempted this exam" });
+  }
+
+  // Return exam details (without answers)
+  res.json({
+    examId:exam._id,
+    exam: {
+      title: exam.title,
+      level: exam.level,
+      questions: exam.questions,
+      numMcqs: exam.numMcqs,
+      numShorts: exam.numShorts,
+    },
+  });
+});
+// controllers/candidateCtrl.js
+export const getExamById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const exam = await Exam.findById(id);
+  if (!exam || exam.status !== "published") {
+    res.status(403);
+    throw new Error("Exam is not available");
+  }
+  res.json({ exam });
+});
+export const getExamInstructions = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid exam ID" });
+  }
+
+  const exam = await Exam.findById(id);
+  if (!exam || exam.status !== "published") {
+    return res.status(403).json({ message: "Exam is not available" });
+  }
+
+  res.json({ instructions: exam.instructions || "No instructions provided." });
+});
+

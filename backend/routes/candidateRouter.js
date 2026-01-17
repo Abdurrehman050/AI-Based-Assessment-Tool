@@ -7,6 +7,10 @@ import {
   getExamByKey,
   submitExam,
   getSubmissionById,
+  enterExamByKey,
+  getExamById,
+  getExamInstructions,
+  logout
 } from "../controllers/candidateCtrl.js";
 import isAuth from "../middlewares/isAuth.js";
 
@@ -18,5 +22,17 @@ router.get("/profile", isAuth, getProfile);
 router.get("/exam/:examKey", isAuth, getExamByKey);
 router.post("/submit-exam", isAuth, submitExam);
 router.get("/submissions/:id", isAuth, getSubmissionById);
+// router.get("/exams/:id", isAuth, getExamById);
+router.get("/exams/:id/instructions", isAuth, getExamInstructions);
+
+
+router.post("/logout", logout);
+router.post(
+  "/enter-exam",
+  isAuth,
+  enterExamByKey
+);
+
+
 
 export default router;

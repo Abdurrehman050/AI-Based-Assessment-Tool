@@ -11,6 +11,9 @@ import {
   getExamSubmissions,
   getExamReports,
   getSubmissionReports,
+  getExamPreview,
+  approveExam,
+  deleteExamController,
 } from "../controllers/teacherCtrl.js";
 import isAuthenticated from "../middlewares/isAuth.js";
 
@@ -30,5 +33,10 @@ router.get("/exams/:examId/submissions", isAuthenticated, getExamSubmissions);
 router.get("/reports/exams", isAuthenticated, getExamReports);
 router.get("/reports/submissions", isAuthenticated, getSubmissionReports);
 router.post("/logout", isAuthenticated, logoutTeacher);
+router.get("/exams/:id/preview", isAuthenticated, getExamPreview);
+router.patch("/exams/:id/approve", isAuthenticated, approveExam);
+router.delete("/exams/:id", isAuthenticated, deleteExamController);
+
+
 
 export default router;
