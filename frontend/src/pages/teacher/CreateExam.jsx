@@ -11,6 +11,7 @@ export default function CreateExam() {
     title: "",
     level: "easy",
     questionType: "MCQ",
+    duration: 60,
     numMcqs: 5,
     numShorts: 2,
     prompt: "",
@@ -50,8 +51,11 @@ export default function CreateExam() {
         title: "",
         level: "easy",
         questionType: "MCQ",
+        duration: 60,
+
         numMcqs: 5,
         numShorts: 2,
+
         prompt: "",
       });
 
@@ -67,13 +71,14 @@ export default function CreateExam() {
     }
   };
 
-
   return (
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6 text-primary">Create New Exam</h1>
 
       {success && (
-        <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">{success}</div>
+        <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">
+          {success}
+        </div>
       )}
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>
@@ -107,6 +112,21 @@ export default function CreateExam() {
             <option value="hard">Hard</option>
           </select>
         </div>
+        {/* Exam Duration */}
+        <div>
+          <label className="block font-medium mb-1">
+            Exam Duration (minutes)
+          </label>
+          <input
+            type="number"
+            name="duration"
+            min="10"
+            value={formData.duration}
+            onChange={handleChange}
+            required
+            className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
 
         {/* Question Type */}
         <div>
@@ -138,7 +158,9 @@ export default function CreateExam() {
 
         {/* Number of Short Questions */}
         <div>
-          <label className="block font-medium mb-1">Number of Short Questions</label>
+          <label className="block font-medium mb-1">
+            Number of Short Questions
+          </label>
           <input
             type="number"
             name="numShorts"

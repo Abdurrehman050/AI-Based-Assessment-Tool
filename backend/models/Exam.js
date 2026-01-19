@@ -4,6 +4,11 @@ const examSchema = new mongoose.Schema({
   title: { type: String, required: true },
   level: { type: String, required: true },
   questionType: { type: String, required: true },
+  duration: {
+    type: Number,
+    required: true,
+    default: 60,
+  },
 
   numMcqs: { type: Number, default: 0 },
   numShorts: { type: Number, default: 0 },

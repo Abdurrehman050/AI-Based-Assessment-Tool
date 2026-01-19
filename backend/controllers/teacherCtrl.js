@@ -123,43 +123,54 @@ async function getGeminiClient() {
 const createExam = asyncHandler(async (req, res) => {
   const ai = await getGeminiClient(); // 👈 load Gemini dynamically
 
-  const { title, level, questionType, numMcqs, numShorts, prompt } = req.body;
-
-  if (!title || !level || !questionType || !prompt) {
+  const {
+    title,
+    level,
+    questionType,
+    duration,
+    numMcqs,
+    numShorts,
+    prompt,
+  } = req.body;
+  if (!duration || duration < 10) {
+    return res.status(400).json({
+      message: "Exam duration must be at least 10 minutes",
+    });
+  }
+  if (!title || !level || !duration || !questionType || !prompt) {
     res.status(400);
     throw new Error("Missing required fields");
   }
 
   const aiPrompt = `
-You are an intelligent exam generator.
-Return only pure JSON — do not include text before or after it.
-Create an exam for the topic: "${title}".
-Difficulty level: ${level}.
-Question type: ${questionType}.
-Include ${numMcqs || 0} multiple-choice questions (MCQs) and ${
-    numShorts || 0
-  } short-answer questions.
-Focus area: ${prompt}.
+                    You are an intelligent exam generator.
+                    Return only pure JSON — do not include text before or after it.
+                    Create an exam for the topic: "${title}".
+                    Difficulty level: ${level}.
+                    Question type: ${questionType}.
+                    Include ${numMcqs || 0} multiple-choice questions (MCQs) and ${numShorts || 0
+    } short-answer questions.
+                    Focus area: ${prompt}.
 
-Return your response strictly in valid JSON format (no markdown, no explanations).
-The structure must be:
+                Return your response strictly in valid JSON format (no markdown, no explanations).
+                The structure must be:
 
-{
-  "mcqs": [
-    {
-      "question": "string",
-      "options": ["A", "B", "C", "D"],
-      "answer": "string"
-    }
-  ],
-  "shortQuestions": [
-    {
-      "question": "string",
-      "answer": "string"
-    }
-  ]
-}
-`;
+                {
+                  "mcqs": [
+                    {
+                      "question": "string",
+                      "options": ["A", "B", "C", "D"],
+                      "answer": "string"
+                    }
+                  ],
+                  "shortQuestions": [
+                    {
+                      "question": "string",
+                      "answer": "string"
+                    }
+                  ]
+                }
+                `;
 
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -173,21 +184,21 @@ The structure must be:
     throw new Error("Failed to read AI response text");
   }
 
-function extractJSON(text) {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) {
+  function extractJSON(text) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) {
+      throw new Error("AI did not return valid JSON");
+    }
+    return JSON.parse(match[0]);
+  }
+
+  let generatedExam;
+  try {
+    generatedExam = extractJSON(text);
+  } catch (err) {
+    console.error("RAW AI OUTPUT:\n", text);
     throw new Error("AI did not return valid JSON");
   }
-  return JSON.parse(match[0]);
-}
-
-let generatedExam;
-try {
-  generatedExam = extractJSON(text);
-} catch (err) {
-  console.error("RAW AI OUTPUT:\n", text);
-  throw new Error("AI did not return valid JSON");
-}
 
 
   const examKey = await generateExamKey(); // ✅ remember to await this since it's async
@@ -196,6 +207,7 @@ try {
     title,
     level,
     questionType,
+    duration,
     numMcqs,
     numShorts,
     examKey,
@@ -209,11 +221,11 @@ try {
   });
   res.status(201).json({
     message: "Exam generated successfully",
-  examKey: exam.examKey,
+    examKey: exam.examKey,
     exam,
   });
 });
-  const getExamPreview = asyncHandler(async (req, res) => {
+const getExamPreview = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // Validate ObjectId
@@ -240,7 +252,7 @@ const approveExam = asyncHandler(async (req, res) => {
   if (!exam) return res.status(404).json({ message: "Exam not found" });
 
   exam.status = "published";
-  exam.isActive=true;
+  exam.isActive = true;
   await exam.save();
 
   res.json({ message: "Exam approved and active", exam });
@@ -566,7 +578,7 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
   const { examId, from, to, isGraded, minScore, maxScore, candidateId, page = 1, limit = 20 } = req.query;
   const query = {};
   if (examId) query.exam = new mongoose.Types.ObjectId(examId);
-  if (candidateId) query.candidate =new mongoose.Types.ObjectId(candidateId);
+  if (candidateId) query.candidate = new mongoose.Types.ObjectId(candidateId);
   if (isGraded === 'true') query.isGraded = true;
   if (isGraded === 'false') query.isGraded = false;
   if (from || to) {
@@ -604,4 +616,4 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
   res.json({ total, page: p, limit: l, submissions });
 });
 
-export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports,getExamPreview,approveExam };
+export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports, getExamPreview, approveExam };

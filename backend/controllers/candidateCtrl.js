@@ -3,6 +3,8 @@ import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import Candidate from "../models/Candidate.js";
+import mongoose from "mongoose";
+
 import Exam from "../models/Exam.js";
 import ExamSubmission from "../models/ExamSubmission.js";
 
@@ -277,17 +279,23 @@ export const getExamById = asyncHandler(async (req, res) => {
   res.json({ exam });
 });
 export const getExamInstructions = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { examId } = req.params;
 
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+  if (!examId || !mongoose.Types.ObjectId.isValid(examId)) {
     return res.status(400).json({ message: "Invalid exam ID" });
   }
 
-  const exam = await Exam.findById(id);
-  if (!exam || exam.status !== "published") {
+  const exam = await Exam.findById(examId);
+  if (!exam || exam.status !== "published" || !exam.isActive) {
     return res.status(403).json({ message: "Exam is not available" });
   }
 
-  res.json({ instructions: exam.instructions || "No instructions provided." });
+  res.json({
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      duration: exam.duration,
+    },
+  });
 });
 

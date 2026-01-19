@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Brain, BarChart3, ShieldCheck, Clock } from "lucide-react";
 import studentAI from "../assets/student-ai.png";
+import tuf from "../assets/intro-tuf.png";
+import tufstudents from "../assets/tuf-students.png"
 
 export default function LandingPage() {
   return (
@@ -46,7 +48,7 @@ export default function LandingPage() {
 
           <div className="flex justify-center">
             <img
-              src={studentAI}
+              src={tuf}
               alt="AI Assessment"
               className="w-full max-w-lg rounded-3xl
                          shadow-[0_30px_70px_rgba(0,0,0,0.2)]

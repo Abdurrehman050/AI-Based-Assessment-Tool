@@ -8,23 +8,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async () => {
+  try {
+    const res = await api.get("/api/v1/candidates/profile");
+    setUser({ role: "candidate", info: res.data.user });
+  } catch {
     try {
-      // Try teacher first
-      try {
-        const res = await api.get("/api/v1/teachers/profile");
-        setUser({ role: "teacher", info: res.data.user });
-        return;
-      } catch { }
-
-      // Then candidate
-      const res = await api.get("/api/v1/candidates/profile");
-      setUser({ role: "candidate", info: res.data.user });
+      const res = await api.get("/api/v1/teachers/profile");
+      setUser({ role: "teacher", info: res.data.user });
     } catch {
       setUser(null);
-    } finally {
-      setLoading(false);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const logout = async () => {
     try {

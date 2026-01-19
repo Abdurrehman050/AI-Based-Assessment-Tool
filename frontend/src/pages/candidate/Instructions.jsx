@@ -11,7 +11,8 @@ export default function Instructions() {
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        const res = await api.get(`/api/v1/candidates/exams/${examId}`);
+        const res = await api.get(`/api/v1/candidates/exam/${examId}/instructions`);
+
         setExam(res.data.exam);
       } catch (err) {
         console.error(err);
