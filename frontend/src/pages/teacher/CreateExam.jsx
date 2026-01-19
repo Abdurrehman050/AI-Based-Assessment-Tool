@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 export default function CreateExam() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
+  const [createdExamId, setCreatedExamId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -38,31 +40,25 @@ export default function CreateExam() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setSuccess("");
 
     try {
       const res = await createExam(formData);
 
-      const createdExamId = res.data.exam._id;
+      const examId = res.data.exam._id;
+      setCreatedExamId(examId);
 
-      setSuccess("Exam generated. Review and approve it before publishing.");
+      // show popup instead of redirect
+      setShowModal(true);
 
       setFormData({
         title: "",
         level: "easy",
         questionType: "MCQ",
         duration: 60,
-
         numMcqs: 5,
         numShorts: 2,
-
         prompt: "",
       });
-
-      // 🧠 Redirect teacher to AI Preview page
-      setTimeout(() => {
-        navigate(`/teacher/exams/${createdExamId}/preview`);
-      }, 800);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to create exam.");
@@ -183,6 +179,32 @@ export default function CreateExam() {
             className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-accent"
           ></textarea>
         </div>
+
+        {/* Success Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 text-center">
+              <h2 className="text-2xl font-bold text-primary mb-3">
+                Exam Created Successfully 🎉
+              </h2>
+
+              <p className="text-gray-600 mb-6">
+                Your exam has been generated. Please review and approve it
+                before publishing.
+              </p>
+
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  navigate(`/teacher/exams/${createdExamId}/preview`);
+                }}
+                className="px-6 py-3 bg-accent text-white rounded-lg font-medium hover:brightness-90 transition"
+              >
+                OK, Preview Exam
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Submit Button */}
         <button

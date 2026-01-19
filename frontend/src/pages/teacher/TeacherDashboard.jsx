@@ -4,17 +4,17 @@ import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 
 // API call for preview
-const previewExam = (examId) => api.get(`/api/v1/teachers/exams/${examId}/preview`);
+const previewExam = (examId) =>
+  api.get(`/api/v1/teachers/exams/${examId}/preview`);
 
 export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState([]);
   const { user, loading: authLoading } = useContext(AuthContext);
   const navigate = useNavigate();
-    const [error, setError] = useState("");
+  const [error, setError] = useState("");
 
-
- useEffect(() => {
+  useEffect(() => {
     if (authLoading) return;
     if (!user) {
       navigate("/teacher/login");
@@ -46,28 +46,30 @@ export default function TeacherDashboard() {
   };
 
   if (authLoading || loading)
-    return <p className="text-center mt-20 text-lg text-gray-500">Loading...</p>;
+    return (
+      <p className="text-center mt-20 text-lg text-gray-500">Loading...</p>
+    );
   if (!user) return null;
 
   // Compute dashboard stats
   const totalExams = exams.length;
   const totalSubmissions = exams.reduce(
     (acc, e) => acc + (e.stats?.submissionCount || 0),
-    0
+    0,
   );
   const gradedSubmissions = exams.reduce(
     (acc, e) => acc + (e.stats?.gradedCount || 0),
-    0
+    0,
   );
   const avgScore =
     totalSubmissions > 0
       ? (
-        exams.reduce(
-          (acc, e) =>
-            acc + (e.stats?.avgScore || 0) * (e.stats?.submissionCount || 0),
-          0
-        ) / totalSubmissions
-      ).toFixed(2)
+          exams.reduce(
+            (acc, e) =>
+              acc + (e.stats?.avgScore || 0) * (e.stats?.submissionCount || 0),
+            0,
+          ) / totalSubmissions
+        ).toFixed(2)
       : 0;
 
   return (
@@ -79,9 +81,13 @@ export default function TeacherDashboard() {
             {user.info.username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">{user.info.username}</h1>
+            <h1 className="text-3xl font-bold text-gray-800">
+              {user.info.username}
+            </h1>
             <p className="text-gray-500 mt-1">Email: {user.info.email}</p>
-            <p className="text-gray-500 mt-1">Subject: {user.info.subject || "N/A"}</p>
+            <p className="text-gray-500 mt-1">
+              Subject: {user.info.subject || "N/A"}
+            </p>
           </div>
         </div>
         <button
@@ -102,8 +108,12 @@ export default function TeacherDashboard() {
           <p className="text-3xl font-bold text-green-600 mt-2">{totalExams}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl transition">
-          <h3 className="text-xl font-semibold text-gray-700">Total Submissions</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">{totalSubmissions}</p>
+          <h3 className="text-xl font-semibold text-gray-700">
+            Total Submissions
+          </h3>
+          <p className="text-3xl font-bold text-green-600 mt-2">
+            {totalSubmissions}
+          </p>
         </div>
         <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl transition">
           <h3 className="text-xl font-semibold text-gray-700">Average Score</h3>
@@ -116,42 +126,57 @@ export default function TeacherDashboard() {
       {exams.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exams
-            .filter(item => item.exam && item.exam._id)
+            .filter((item) => item.exam && item.exam._id)
             .map(({ exam, stats }) => (
               <div
                 key={exam._id}
                 className="bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition flex flex-col justify-between"
               >
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800">{exam.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">Exam Key: {exam.examKey}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Submissions: {stats?.submissionCount || 0} | Graded: {stats?.gradedCount || 0}
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {exam.title}
+                  </h3>
+                  <p className="text-md text-gray-500 mt-1">
+                    Exam Key: {exam.examKey}
                   </p>
-                  <p className="text-sm text-green-600 mt-2">Avg Score: {stats?.avgScore?.toFixed(2) || 0}</p>
+                  <p className="text-md text-gray-500 mt-1">
+                    Status: {exam.status}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Submissions: {stats?.submissionCount || 0} | Graded:{" "}
+                    {stats?.gradedCount || 0}
+                  </p>
+                  <p className="text-sm text-green-600 mt-2">
+                    Avg Score: {stats?.avgScore?.toFixed(2) || 0}
+                  </p>
                 </div>
                 <div className="mt-4 flex gap-2 flex-wrap">
                   {/* Preview Exam */}
                   <button
-                    onClick={() => navigate(`/teacher/exams/${exam._id}/preview`)}
-                    className="px-4 py-2 rounded-full bg-blue-500 text-white font-medium hover:bg-yellow-600 transition flex-1"
+                    onClick={() =>
+                      navigate(`/teacher/exams/${exam._id}/preview`)
+                    }
+                    className="px-4 py-2 rounded-full bg-accent text-white font-medium hover:bg-primary transition flex-1"
                   >
                     Preview
                   </button>
                   {/* View Submissions */}
                   <button
-                    onClick={() => navigate(`/teacher/exams/${exam._id}/submissions`)}
-                    className="px-4 py-2 rounded-full bg-green-600 text-white font-medium hover:bg-green-700 transition flex-1"
+                    onClick={() =>
+                      navigate(`/teacher/exams/${exam._id}/submissions`)
+                    }
+                    className="px-4 py-2 rounded-full bg-primary text-white font-medium hover:bg-accent transition flex-1"
                   >
                     View Submissions
                   </button>
-                  
                 </div>
               </div>
             ))}
         </div>
       ) : (
-        <p className="text-gray-500 text-center mt-6">You have not created any exams yet.</p>
+        <p className="text-gray-500 text-center mt-6">
+          You have not created any exams yet.
+        </p>
       )}
     </div>
   );

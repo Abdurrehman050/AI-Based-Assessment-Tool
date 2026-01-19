@@ -18,7 +18,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLogin from "./pages/admin/AdminLogin";
 import EnterExam from "./pages/candidate/EnterExam";
 import Instructions from "./pages/candidate/Instructions";
-
+import Footer from "./components/Footer";
 
 export default function App() {
   return (
@@ -32,7 +32,10 @@ export default function App() {
             <Route path="/teacher/register" element={<TeacherRegister />} />
             <Route path="/candidate/login" element={<CandidateLogin />} />
             <Route path="/teacher/login" element={<TeacherLogin />} />
-            <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
+            <Route
+              path="/candidate/dashboard"
+              element={<CandidateDashboard />}
+            />
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/create-exam" element={<CreateExam />} />
             <Route path="/teacher/exams" element={<ManageExams />} />
@@ -47,18 +50,14 @@ export default function App() {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/candidate/enter-exam" element={<EnterExam />} />
-          <Route path="/candidate/exam/:examId/instructions" element={<Instructions />} />
-
-
-
+            <Route path="/candidate/enter-exam" element={<EnterExam />} />
+            <Route
+              path="/candidate/exam/:examId/instructions"
+              element={<Instructions />}
+            />
           </Routes>
         </main>
-        <footer className="bg-white mt-10">
-          <div className="container mx-auto px-6 py-6 text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} AI Assessment Tool — Project (BSc CS)
-          </div>
-        </footer>
+        <Footer />
       </div>
     </AuthProvider>
   );
