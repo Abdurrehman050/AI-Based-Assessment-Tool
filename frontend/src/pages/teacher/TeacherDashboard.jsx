@@ -77,7 +77,7 @@ export default function TeacherDashboard() {
       {/* Profile Card */}
       <div className="bg-white shadow-md rounded-2xl p-8 mb-6 flex flex-col md:flex-row items-center md:justify-between space-y-4 md:space-y-0">
         <div className="flex items-center space-x-6">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-2xl font-bold text-green-600">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-2xl font-bold text-accent">
             {user.info.username.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -92,7 +92,7 @@ export default function TeacherDashboard() {
         </div>
         <button
           onClick={() => navigate("/teacher/exams")}
-          className="px-6 py-3 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700 transition shadow-lg"
+          className="px-6 py-3 rounded-full bg-accent text-white font-semibold hover:bg-accent/80 transition shadow-lg"
         >
           Manage Exams
         </button>
@@ -105,19 +105,19 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl transition">
           <h3 className="text-xl font-semibold text-gray-700">Total Exams</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">{totalExams}</p>
+          <p className="text-3xl font-bold text-accent mt-2">{totalExams}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl transition">
           <h3 className="text-xl font-semibold text-gray-700">
             Total Submissions
           </h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">
+          <p className="text-3xl font-bold text-accent mt-2">
             {totalSubmissions}
           </p>
         </div>
         <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl transition">
           <h3 className="text-xl font-semibold text-gray-700">Average Score</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">{avgScore}</p>
+          <p className="text-3xl font-bold text-accent mt-2">{avgScore}</p>
         </div>
       </div>
 
