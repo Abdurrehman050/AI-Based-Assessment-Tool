@@ -23,9 +23,7 @@ export default function EnterExam() {
       // backend returns examId
       navigate(`/candidate/exam/${res.data.examId}/instructions`);
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Invalid or expired exam key"
-      );
+      setError(err.response?.data?.message || "Invalid or expired exam key");
     } finally {
       setLoading(false);
     }
@@ -54,12 +52,12 @@ export default function EnterExam() {
             value={examKey}
             onChange={(e) => setExamKey(e.target.value)}
             placeholder="e.g. EXAM-"
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg tracking-wider uppercase"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-accent outline-none text-lg tracking-wider uppercase"
           />
 
           <button
             disabled={loading}
-            className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition"
+            className="w-full mt-6 bg-accent hover:bg-accent/80 text-white py-3 rounded-lg font-semibold transition"
           >
             {loading ? "Verifying..." : "Start Exam"}
           </button>

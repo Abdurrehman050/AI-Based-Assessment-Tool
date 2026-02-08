@@ -80,7 +80,7 @@ export default function Navbar() {
                   to="/candidate/exams"
                   className="px-4 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
                 >
-                  Exams
+                  Enter Exam
                 </Link>
               </li>
               <li>
@@ -124,12 +124,20 @@ export default function Navbar() {
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/teacher/create-exam" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/teacher/create-exam"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Create Exams
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/teacher/reports" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/teacher/reports"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Rports
                 </Link>
               </li>
@@ -158,7 +166,10 @@ export default function Navbar() {
 
         {/* Mobile Hamburger */}
         <div className="md:hidden flex items-center">
-          <button onClick={() => setIsOpen(!isOpen)} className="focus:outline-none">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="focus:outline-none"
+          >
             <svg
               className="w-7 h-7 text-primary"
               fill="none"
@@ -166,9 +177,19 @@ export default function Navbar() {
               viewBox="0 0 24 24"
             >
               {isOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               )}
             </svg>
           </button>
@@ -202,22 +223,37 @@ export default function Navbar() {
           {user?.role === "candidate" && (
             <>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/candidate/dashboard" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/candidate/dashboard"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/candidate/exams" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/candidate/exams"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Exams
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/candidate/submissions" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/candidate/submissions"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Submissions
                 </Link>
               </li>
               <li>
-                <button onClick={handleLogout} className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                >
                   Logout
                 </button>
               </li>
@@ -227,22 +263,37 @@ export default function Navbar() {
           {user?.role === "teacher" && (
             <>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/teacher/dashboard" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/teacher/dashboard"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/teacher/createexams" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/teacher/createexams"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   Create Exams
                 </Link>
               </li>
               <li>
-                <Link onClick={() => setIsOpen(false)} to="/teacher/viewsubissions" className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition">
+                <Link
+                  onClick={() => setIsOpen(false)}
+                  to="/teacher/viewsubissions"
+                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                >
                   View Submissions
                 </Link>
               </li>
               <li>
-                <button onClick={handleLogout} className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                >
                   Logout
                 </button>
               </li>

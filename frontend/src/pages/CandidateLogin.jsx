@@ -1,7 +1,7 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginCandidate } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
+import { loginCandidate } from "../services/api";
 import { Mail, Lock, User } from "lucide-react";
 
 export default function CandidateLogin() {
@@ -10,7 +10,7 @@ export default function CandidateLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { setUser } = useContext(AuthContext);
+  const { loginSuccess } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -20,7 +20,7 @@ export default function CandidateLogin() {
 
     try {
       const res = await loginCandidate({ email, password });
-      setUser({ role: "candidate", info: res.data.candidate });
+      await loginSuccess("candidate", res.data.token, res.data.candidate);
       navigate("/candidate/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
@@ -30,11 +30,8 @@ export default function CandidateLogin() {
   };
 
   return (
-    <div className="min-h-screen  from-sky-100 to-sky-200 flex items-center justify-center px-4">
-
+    <div className=" flex items-center justify-center px-4 ">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-accent text-white rounded-full flex items-center justify-center mx-auto mb-4">
             <User size={26} />
@@ -45,17 +42,13 @@ export default function CandidateLogin() {
           </p>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg mb-4">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
-
-          {/* Email */}
           <div>
             <label className="text-sm text-gray-600 mb-1 block">Email</label>
             <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-sky-500">
@@ -71,7 +64,6 @@ export default function CandidateLogin() {
             </div>
           </div>
 
-          {/* Password */}
           <div>
             <label className="text-sm text-gray-600 mb-1 block">Password</label>
             <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-sky-500">
@@ -87,18 +79,15 @@ export default function CandidateLogin() {
             </div>
           </div>
 
-          {/* Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-accent text-white rounded-lg font-semibold hover:bg-sky-700 transition disabled:opacity-60"
+            className="w-full py-2.5 bg-accent text-white rounded-lg font-semibold hover:bg-accent/80 transition disabled:opacity-60"
           >
             {loading ? "Signing in..." : "Login"}
           </button>
-
         </form>
 
-        {/* Footer */}
         <p className="mt-6 text-sm text-gray-500 text-center">
           Don’t have an account?{" "}
           <a
@@ -107,10 +96,6 @@ export default function CandidateLogin() {
           >
             Register here
           </a>
-        </p>
-
-        <p className="text-center text-xs text-gray-400 mt-4">
-          © {new Date().getFullYear()} AI-Based Assessment System
         </p>
       </div>
     </div>

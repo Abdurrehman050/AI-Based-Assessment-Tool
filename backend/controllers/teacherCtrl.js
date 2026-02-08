@@ -257,7 +257,7 @@ const approveExam = asyncHandler(async (req, res) => {
 
   res.json({ message: "Exam approved and active", exam });
 });
-// Delete exam
+//delete
 export const deleteExamController = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -265,38 +265,49 @@ export const deleteExamController = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Invalid exam ID" });
   }
 
+  // 1️⃣ Make sure the teacher owns this exam
   const exam = await Exam.findOne({ _id: id, createdBy: req.user._id });
-
   if (!exam) {
     return res.status(404).json({ message: "Exam not found" });
   }
 
+  // 2️⃣ Delete all submissions related to this exam
+  await ExamSubmission.deleteMany({ exam: id });
+
+  // 3️⃣ Remove this exam from candidates' attemptedExams
+  await Candidate.updateMany(
+    { attemptedExams: id },
+    { $pull: { attemptedExams: id } }
+  );
+
+  // 4️⃣ Delete the exam itself
   await Exam.deleteOne({ _id: id });
 
-  res.json({ message: "Exam deleted successfully" });
+  res.json({ message: "Exam and all related data deleted successfully" });
 });
 
 
 
 // Internal helper: grade a submission document using Gemini and save it
 async function doGradeSubmission(submission, teacherId) {
-  // ensure exam is populated
-  const exam = submission.exam && submission.exam.questions ? submission.exam : await Exam.findById(submission.exam);
+  const exam = submission.exam && submission.exam.questions
+    ? submission.exam
+    : await Exam.findById(submission.exam);
 
-  // score MCQs (1 point each)
+  // 1️⃣ Score MCQs
   let mcqScore = 0;
   if (Array.isArray(submission.mcqAnswers) && Array.isArray(exam.questions?.mcqs)) {
     for (const ans of submission.mcqAnswers) {
-      const q = exam.questions.mcqs.find((x) => String(x._id) === String(ans.questionId));
+      const q = exam.questions.mcqs.find(x => String(x._id) === String(ans.questionId));
       if (q && ans.selectedOption === q.answer) mcqScore += 1;
     }
   }
 
-  // prepare short answers for AI grading
+  // 2️⃣ Prepare short answers
   const shortItems = [];
   if (Array.isArray(submission.shortAnswers) && Array.isArray(exam.questions?.shortQuestions)) {
     for (const sa of submission.shortAnswers) {
-      const q = exam.questions.shortQuestions.find((x) => String(x._id) === String(sa.questionId));
+      const q = exam.questions.shortQuestions.find(x => String(x._id) === String(sa.questionId));
       if (q) {
         shortItems.push({
           questionId: String(sa.questionId),
@@ -308,7 +319,7 @@ async function doGradeSubmission(submission, teacherId) {
     }
   }
 
-  // If no short answers, finalize score
+  // 3️⃣ If no short answers, finalize
   if (shortItems.length === 0) {
     submission.score = mcqScore;
     submission.checkedByAI = true;
@@ -318,25 +329,51 @@ async function doGradeSubmission(submission, teacherId) {
     return submission;
   }
 
+  // 4️⃣ Call AI
   const ai = await getGeminiClient();
-  const aiPrompt = `You are an expert grader. Grade each short answer against the model answer. Each question is worth 1 point. Return ONLY valid JSON (no commentary) as an array of objects with keys: questionId (string), score (0 or 1), feedback (string). Example: [{"questionId":"...","score":1,"feedback":"Good answer"}].\n\nInput:\n${JSON.stringify(shortItems, null, 2)}`;
+  const aiPrompt = `
+You are an expert grader. Grade each short answer against the model answer.
+Each question is worth 1 point. Return ONLY a valid JSON array.
+No explanations or text outside JSON.
 
-  const result = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: aiPrompt });
+Example: [{"questionId":"...","score":1,"feedback":"Good answer"}]
+
+Input: ${JSON.stringify(shortItems, null, 2)}
+`;
+
+  const result = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: aiPrompt
+  });
+
   const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Failed to read AI response text");
+  if (!text) throw new Error("Failed to read AI response text");
+
+  // 5️⃣ SAFE JSON parsing
+  function parseAIJSON(raw) {
+    let clean = raw.trim();
+    // Remove ```json or ``` blocks
+    if (clean.startsWith("```")) {
+      clean = clean.replace(/```json?/, "").replace(/```$/, "").trim();
+    }
+    // Extract first array from text
+    const match = clean.match(/\[.*\]/s);
+    if (!match) throw new Error("AI did not return valid JSON");
+    return JSON.parse(match[0]);
   }
 
   let grades;
   try {
-    grades = JSON.parse(text);
+    grades = parseAIJSON(text);
   } catch (err) {
+    console.error("RAW AI OUTPUT:\n", text);
     throw new Error("AI did not return valid JSON for grading");
   }
 
+  // 6️⃣ Apply grades
   let shortScore = 0;
   for (const g of grades) {
-    const idx = submission.shortAnswers.findIndex((s) => String(s.questionId) === String(g.questionId));
+    const idx = submission.shortAnswers.findIndex(s => String(s.questionId) === String(g.questionId));
     if (idx !== -1) {
       const score = typeof g.score === "number" ? g.score : Number(g.score) || 0;
       submission.shortAnswers[idx].aiScore = score;
@@ -345,14 +382,17 @@ async function doGradeSubmission(submission, teacherId) {
     }
   }
 
+  // 7️⃣ Finalize submission
   submission.score = mcqScore + shortScore;
   submission.checkedByAI = true;
   submission.isGraded = true;
   submission.gradedBy = teacherId;
   submission.feedback = (submission.feedback || "") + "\nAI grading performed";
   await submission.save();
+
   return submission;
 }
+
 
 // @desc    Grade a single submission using AI (teacher-triggered)
 // @route   POST /api/v1/teachers/submissions/:id/grade-ai
@@ -516,54 +556,38 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/teachers/reports/exams
 // @access  Private (teacher)
 const getExamReports = asyncHandler(async (req, res) => {
-  if (!req.user || req.user.role !== "teacher") {
-    res.status(403);
-    throw new Error("Only teachers can view reports");
-  }
+  // fetch all exams by this teacher
+  const exams = await Exam.find({ createdBy: req.user._id });
 
-  const { from, to, title, level, questionType, page = 1, limit = 20 } = req.query;
-  const examQuery = { createdBy: req.user._id };
-  if (title) examQuery.title = { $regex: title, $options: "i" };
-  if (level) examQuery.level = level;
-  if (questionType) examQuery.questionType = questionType;
+  const reports = await Promise.all(
+    exams.map(async (exam) => {
+      const submissions = await ExamSubmission.find({ exam: exam._id });
+      const gradedSubmissions = submissions.filter((s) => s.isGraded);
 
-  const exams = await Exam.find(examQuery).sort({ createdAt: -1 }).lean();
+      // calculate average score
+      const avgScore =
+        gradedSubmissions.length > 0
+          ? gradedSubmissions.reduce((acc, s) => acc + s.score, 0) /
+          gradedSubmissions.length
+          : 0;
 
-  // For each exam compute submission stats (count, gradedCount, avgScore, min/max)
-  const results = [];
-  const subMatchBase = { isSubmitted: true };
-  if (from || to) {
-    subMatchBase.createdAt = {};
-    if (from) subMatchBase.createdAt.$gte = new Date(from);
-    if (to) subMatchBase.createdAt.$lte = new Date(to);
-  }
+      const totalMarks =
+        (exam.numMcqs || 0) * 1 + (exam.numShorts || 0) * 2; // adjust as per your scoring
 
-  for (const ex of exams) {
-    const match = { ...subMatchBase, exam: new mongoose.Types.ObjectId(ex._id) };
-    const agg = await ExamSubmission.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: "$exam",
-          submissionCount: { $sum: 1 },
-          gradedCount: { $sum: { $cond: ["$isGraded", 1, 0] } },
-          avgScore: { $avg: "$score" },
-          minScore: { $min: "$score" },
-          maxScore: { $max: "$score" },
-        },
-      },
-    ]);
+      return {
+        _id: exam._id,
+        title: exam.title,
+        examKey: exam.examKey,
+        isActive: exam.isActive,
+        attemptedCount: submissions.length,
+        gradedCount: gradedSubmissions.length,
+        averageScore: avgScore,
+        totalMarks,
+      };
+    }),
+  );
 
-    const stats = agg[0] || { submissionCount: 0, gradedCount: 0, avgScore: 0, minScore: 0, maxScore: 0 };
-    results.push({ exam: ex, stats });
-  }
-
-  // simple pagination in-memory
-  const p = Math.max(1, parseInt(page, 10));
-  const l = Math.max(1, parseInt(limit, 10));
-  const paged = results.slice((p - 1) * l, p * l);
-
-  res.json({ total: results.length, page: p, limit: l, data: paged });
+  res.status(200).json({ success: true, data: reports });
 });
 
 // @desc    Reports: submission-level filtering
@@ -615,5 +639,6 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
   const total = await ExamSubmission.countDocuments(query);
   res.json({ total, page: p, limit: l, submissions });
 });
+
 
 export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports, getExamPreview, approveExam };

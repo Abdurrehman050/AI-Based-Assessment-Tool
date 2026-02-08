@@ -19,6 +19,13 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import EnterExam from "./pages/candidate/EnterExam";
 import Instructions from "./pages/candidate/Instructions";
 import Footer from "./components/Footer";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import ExamPortal from "./pages/candidate/ExamPortal";
+import SubmissionDetails from "./pages/teacher/SubmissionDetails";
+import CandidateSubmissionDetails from "./pages/candidate/CandidateSubmissionDetails";
+import CandidateSubmissions from "./pages/candidate/CandidateSubmissions";
+import TeacherReports from "./pages/teacher/TeacherReports";
 
 export default function App() {
   return (
@@ -51,10 +58,36 @@ export default function App() {
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/candidate/enter-exam" element={<EnterExam />} />
+            <Route path="/candidate/exams" element={<EnterExam />} />
+
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+
             <Route
               path="/candidate/exam/:examId/instructions"
               element={<Instructions />}
             />
+            <Route
+              path="/candidate/exam/:examId/start"
+              element={<ExamPortal />}
+            />
+            <Route
+              path="/teacher/submissions/:submissionId"
+              element={<SubmissionDetails />}
+            />
+            <Route
+              path="/candidate/submission/:submissionId"
+              element={<CandidateSubmissionDetails />}
+            />
+            <Route
+              path="/candidate/submissions"
+              element={<CandidateSubmissions />}
+            />
+            <Route
+              path="/candidate/submissions"
+              element={<CandidateSubmissions />}
+            />
+            <Route path="/teacher/reports" element={<TeacherReports />} />
           </Routes>
         </main>
         <Footer />

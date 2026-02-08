@@ -94,11 +94,11 @@ export const loginCandidate = asyncHandler(async (req, res) => {
   );
 
   res.cookie("token", token, {
-  httpOnly: true,
-  sameSite: "strict",
-  secure: process.env.NODE_ENV === "production", // use false for localhost
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production", // use false for localhost
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 
   res.json({
     message: "Login successful",
@@ -181,13 +181,13 @@ export const submitExam = asyncHandler(async (req, res) => {
   }
 
   // If no answers were provided, log the incoming body for debugging and return a clear error
-  if (mcqList.length === 0 && shortList.length === 0) {
-    console.warn("submitExam called with no answers. Request body:", JSON.stringify(req.body));
-    res.status(400);
-    throw new Error(
-      "No answers provided. Please include `mcqAnswers` and/or `shortAnswers` arrays in the request body."
-    );
-  }
+  // if (mcqList.length === 0 && shortList.length === 0) {
+  //   console.warn("submitExam called with no answers. Request body:", JSON.stringify(req.body));
+  //   res.status(400);
+  //   throw new Error(
+  //     "No answers provided. Please include `mcqAnswers` and/or `shortAnswers` arrays in the request body."
+  //   );
+  // }
 
   const submission = await ExamSubmission.create({
     exam: id,
@@ -197,41 +197,67 @@ export const submitExam = asyncHandler(async (req, res) => {
     isSubmitted: true,
   });
 
+  await Candidate.findByIdAndUpdate(req.user._id, {
+    $push: { attemptedExams: submission._id },
+  });
+
   res.status(201).json({
     message: "Exam submitted successfully",
     submission,
   });
 
-  await Candidate.findByIdAndUpdate(req.user._id, {
-    $push: { attemptedExams: submission._id },
-  });
+
 });
 
 // @desc    Get a submission by ID (candidate or teacher)
 // @route   GET /api/v1/candidates/submissions/:id
 // @access  Private (candidate or teacher)
 export const getSubmissionById = asyncHandler(async (req, res) => {
-  const id = req.params.id;
-  const submission = await ExamSubmission.findById(id).populate('exam').populate('candidate', 'username email');
+  const { id } = req.params;
+
+  const submission = await ExamSubmission.findById(id)
+    .populate("candidate", "username email")
+    .populate({
+      path: "exam",
+      select: "title duration questions createdBy",
+    });
+
   if (!submission) {
     res.status(404);
-    throw new Error('Submission not found');
+    throw new Error("Submission not found");
   }
 
-  // If user is a candidate, ensure they own the submission
-  if (req.user.role === 'candidate' && String(submission.candidate._id) !== String(req.user._id)) {
+  const isCandidate = req.user.role === "candidate";
+  const isOwner =
+    String(submission.candidate._id) === String(req.user._id);
+
+  if (isCandidate && !isOwner) {
     res.status(403);
-    throw new Error('Not authorized to view this submission');
+    throw new Error("Not authorized");
   }
 
-  // If user is a teacher, ensure they created the exam
-  if (req.user.role === 'teacher' && String(submission.exam.createdBy) !== String(req.user._id)) {
-    res.status(403);
-    throw new Error('Not authorized to view this submission');
+  let responseSubmission = submission.toObject();
+
+  // 🔐 HIDE SCORES IF NOT GRADED (CANDIDATE)
+  if (isCandidate && !submission.checkedByAI) {
+    responseSubmission.mcqAnswers = responseSubmission.mcqAnswers.map(a => ({
+      questionId: a.questionId,
+      selectedOption: a.selectedOption,
+    }));
+
+    responseSubmission.shortAnswers = responseSubmission.shortAnswers.map(a => ({
+      questionId: a.questionId,
+      answerText: a.answerText,
+    }));
+
+    delete responseSubmission.aiFeedback;
+    delete responseSubmission.humanFeedback;
   }
 
-  res.json({ submission });
+  res.json({ submission: responseSubmission });
 });
+
+
 
 
 //enter exam by key
@@ -248,17 +274,25 @@ export const enterExamByKey = asyncHandler(async (req, res) => {
   }
 
   // Optionally, check if candidate already attempted
-  const candidate = await Candidate.findById(req.user._id);
+  const candidate = await Candidate.findById(req.user._id).populate('attemptedExams');
+
   const alreadyAttempted = candidate.attemptedExams?.some(
-    (sub) => sub.exam.toString() === exam._id.toString()
+    (sub) => {
+      // If attemptedExams are populated ExamSubmissions
+      if (sub.exam) return String(sub.exam) === String(exam._id);
+      // If attemptedExams are just ObjectIds (not populated)
+      return String(sub) === String(exam._id);
+    }
   );
+
   if (alreadyAttempted) {
     return res.status(400).json({ message: "You have already attempted this exam" });
   }
 
+
   // Return exam details (without answers)
   res.json({
-    examId:exam._id,
+    examId: exam._id,
     exam: {
       title: exam.title,
       level: exam.level,
@@ -270,12 +304,14 @@ export const enterExamByKey = asyncHandler(async (req, res) => {
 });
 // controllers/candidateCtrl.js
 export const getExamById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const exam = await Exam.findById(id);
+  const { examId } = req.params;
+
+  const exam = await Exam.findById(examId);
+
   if (!exam || exam.status !== "published") {
-    res.status(403);
-    throw new Error("Exam is not available");
+    return res.status(403).json({ message: "Exam is not available" });
   }
+
   res.json({ exam });
 });
 export const getExamInstructions = asyncHandler(async (req, res) => {
@@ -285,17 +321,47 @@ export const getExamInstructions = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Invalid exam ID" });
   }
 
-  const exam = await Exam.findById(examId);
+  const exam = await Exam.findById(examId).select(
+    "title duration questions status isActive"
+  );
+
   if (!exam || exam.status !== "published" || !exam.isActive) {
     return res.status(403).json({ message: "Exam is not available" });
   }
+
+  // ✅ count from nested arrays
+  const numMcqs = Array.isArray(exam.questions?.mcqs)
+    ? exam.questions.mcqs.length
+    : 0;
+
+  const numShorts = Array.isArray(exam.questions?.shortQuestions)
+    ? exam.questions.shortQuestions.length
+    : 0;
 
   res.json({
     exam: {
       _id: exam._id,
       title: exam.title,
       duration: exam.duration,
+      numMcqs,
+      numShorts,
     },
   });
 });
 
+// GET /api/v1/candidates/submissions
+export const getCandidateSubmissions = asyncHandler(async (req, res) => {
+  const candidateId = req.user._id; // set by isAuth middleware
+
+  if (!candidateId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const submissions = await ExamSubmission.find({ candidate: candidateId })
+    .populate("exam", "title duration status questions")
+    .sort({ createdAt: -1 });
+
+  console.log("Submissions found:", submissions);
+
+  res.json({ submissions });
+});

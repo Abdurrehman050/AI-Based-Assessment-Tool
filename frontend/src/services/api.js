@@ -1,17 +1,23 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/";
 
 const api = axios.create({
   baseURL,
-  withCredentials: true, // send/receive cookies (JWT in httpOnly cookie)
-  headers: {
-    "Content-Type": "application/json",
-  },
+  withCredentials: true, // send/receive cookies
+  headers: { "Content-Type": "application/json" },
+});
+
+// Interceptor to attach token automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export default api;
-
 /* ======================
    AUTH HELPERS
 ====================== */
@@ -78,6 +84,8 @@ export const previewExam = (examId) => {
   if (!examId) throw new Error("Exam ID is required");
   return api.get(`/api/v1/teachers/exams/${examId}/preview`);
 };
+export const getCandidateSubmissions = () =>
+  api.get("/api/v1/candidates/submissions");
 export const deleteExam = (examId) => api.delete(`/api/v1/teachers/exams/${examId}`);
 
 /* ======================
@@ -88,3 +96,4 @@ export const getAllUsers = () => api.get("/api/v1/admin/users");
 export const deleteUser = (role, id) =>
   api.delete(`/api/v1/admin/users/${role}/${id}`);
 export const getAllExams = () => api.get("/api/v1/admin/exams");
+

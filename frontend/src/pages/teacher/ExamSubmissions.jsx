@@ -6,10 +6,11 @@ import {
   gradeSubmissionManual,
 } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
-
+import { useNavigate } from "react-router-dom";
 export default function ExamSubmissions() {
   const { user } = useContext(AuthContext);
   const { examId } = useParams();
+  const navigate = useNavigate();
 
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,12 +91,8 @@ export default function ExamSubmissions() {
                   <td className="px-4 py-2">{s.candidate?.username}</td>
                   <td className="px-4 py-2">{s.candidate?.email}</td>
                   <td className="px-4 py-2">{s.score ?? 0}</td>
-                  <td className="px-4 py-2">
-                    {s.isGraded ? "Yes" : "No"}
-                  </td>
-                  <td className="px-4 py-2">
-                    {s.checkedByAI ? "Yes" : "No"}
-                  </td>
+                  <td className="px-4 py-2">{s.isGraded ? "Yes" : "No"}</td>
+                  <td className="px-4 py-2">{s.checkedByAI ? "Yes" : "No"}</td>
                   <td className="px-4 py-2">
                     {new Date(s.createdAt).toLocaleString()}
                   </td>
@@ -108,8 +105,14 @@ export default function ExamSubmissions() {
                       {gradingId === s._id
                         ? "Grading..."
                         : s.isGraded
-                        ? "Graded"
-                        : "AI Grade"}
+                          ? "Graded"
+                          : "AI Grade"}
+                    </button>
+                    <button
+                      onClick={() => navigate(`/teacher/submissions/${s._id}`)}
+                      className="px-3 py-1 bg-primary text-white rounded"
+                    >
+                      View
                     </button>
                     {/* Optional: manual grading modal */}
                   </td>

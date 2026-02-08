@@ -4,13 +4,20 @@ import { AuthContext } from "../../context/AuthContext";
 import { FiTrash2 } from "react-icons/fi";
 
 export default function ManageExams() {
-  const { user } = useContext(AuthContext);
+  const { user, loading: authLoading } = useContext(AuthContext);
 
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gradingId, setGradingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
+
+  // Wait until auth finishes loading
+  if (authLoading) {
+    return (
+      <div className="text-center mt-20 text-gray-500">Loading user...</div>
+    );
+  }
 
   if (!user || user.role !== "teacher") {
     return (
@@ -83,12 +90,11 @@ export default function ManageExams() {
         <div className="text-center text-gray-500">No exams found.</div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {exams.map(({ exam, stats }) => (
+          {exams.map((exam) => (
             <div
               key={exam._id}
               className="relative bg-white rounded-2xl shadow-lg p-6 hover:shadow-2xl transition"
             >
-              {/* 🗑️ Delete icon */}
               <button
                 onClick={() => handleDelete(exam._id)}
                 disabled={deletingId === exam._id}
@@ -105,15 +111,18 @@ export default function ManageExams() {
                 <p className="text-sm font-mono text-gray-600">
                   Key: {exam.examKey}
                 </p>
-                <p className="text-sm text-gray-600">Difficulty: {exam.level}</p>
+                <p className="text-sm text-gray-600">
+                  Difficulty: {exam.level}
+                </p>
                 <p className="text-sm text-gray-600">
                   MCQs: {exam.numMcqs || 0}, Shorts: {exam.numShorts || 0}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Submissions: {stats.submissionCount}, Graded: {stats.gradedCount}
+                  Submissions: {exam.attemptedCount || 0}, Graded:{" "}
+                  {exam.gradedCount || 0}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Avg Score: {stats.avgScore?.toFixed(2) || 0}
+                  Avg Score: {exam.averageScore?.toFixed(2) || 0}
                 </p>
               </div>
 
@@ -125,13 +134,6 @@ export default function ManageExams() {
                 >
                   {gradingId === exam._id ? "Grading..." : "Quick Grade"}
                 </button>
-
-                <a
-                  href={`/teacher/exams/${exam._id}/submissions`}
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:brightness-90 text-center"
-                >
-                  View Submissions
-                </a>
               </div>
             </div>
           ))}

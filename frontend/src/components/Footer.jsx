@@ -36,7 +36,7 @@ export default function Footer() {
                   to="/about"
                   className="text-gray-600 dark:text-gray-400 hover:text-accent transition"
                 >
-                  About Project
+                  About
                 </Link>
               </li>
               <li>
