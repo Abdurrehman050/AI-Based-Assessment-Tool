@@ -1,0 +1,12 @@
+{
+  "name": "ai-assesment-tool",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "concurrently \"npm run dev-frontend\" \"npm run dev-backend\"",
+    "dev-frontend": "cd frontend && npm run dev",
+    "dev-backend": "cd backend && node --watch server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

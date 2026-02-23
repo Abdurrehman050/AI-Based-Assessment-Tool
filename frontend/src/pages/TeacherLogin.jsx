@@ -51,7 +51,7 @@ export default function TeacherLogin() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="text-sm text-gray-600 mb-1 block">Email</label>
-            <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-emerald-500">
+            <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-primary">
               <Mail className="text-gray-400 mr-2" size={18} />
               <input
                 type="email"
@@ -66,7 +66,7 @@ export default function TeacherLogin() {
 
           <div>
             <label className="text-sm text-gray-600 mb-1 block">Password</label>
-            <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-emerald-500">
+            <div className="flex items-center border rounded-lg px-3 focus-within:ring-2 focus-within:ring-primary">
               <Lock className="text-gray-400 mr-2" size={18} />
               <input
                 type="password"

@@ -38,6 +38,31 @@ export function extractAnswersFromExam(exam) {
   return { mcqAnswers, shortAnswers };
 }
 
+function normalizeQuestionId(value) {
+  if (!value) return null;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+}
+
+function buildAnswerMaps(mcqAnswers = [], shortAnswers = []) {
+  const mcqMap = new Map();
+  const shortMap = new Map();
+
+  for (const item of mcqAnswers) {
+    const id = normalizeQuestionId(item?.questionId);
+    if (!id) continue;
+    mcqMap.set(id, item?.selectedOption ?? "");
+  }
+
+  for (const item of shortAnswers) {
+    const id = normalizeQuestionId(item?.questionId);
+    if (!id) continue;
+    shortMap.set(id, item?.answerText ?? "");
+  }
+
+  return { mcqMap, shortMap };
+}
+
 // ✅ Register Candidate
 export const registerCandidate = asyncHandler(async (req, res) => {
   const { username, email, password, institution } = req.body;
@@ -150,7 +175,8 @@ export const getExamByKey = asyncHandler(async (req, res) => {
 
 // ✅ Submit Exam
 export const submitExam = asyncHandler(async (req, res) => {
-  const { examId, exam, mcqAnswers, shortAnswers } = req.body;
+  const { examId, exam, mcqAnswers, shortAnswers, warningLogs, autoSubmitted } =
+    req.body;
 
   // Accept either examId or an exam object containing _id
   const id = examId || (exam && (exam._id || exam.id));
@@ -189,11 +215,39 @@ export const submitExam = asyncHandler(async (req, res) => {
   //   );
   // }
 
+  const { mcqMap, shortMap } = buildAnswerMaps(mcqList, shortList);
+  const normalizedMcqAnswers = (examExists.questions?.mcqs || []).map((q) => ({
+    questionId: q._id,
+    selectedOption: mcqMap.get(String(q._id)) ?? "",
+  }));
+  const normalizedShortAnswers = (examExists.questions?.shortQuestions || []).map(
+    (q) => ({
+      questionId: q._id,
+      answerText: shortMap.get(String(q._id)) ?? "",
+    }),
+  );
+  const normalizedWarningLogs = Array.isArray(warningLogs)
+    ? warningLogs
+        .filter((log) => log && typeof log.message === "string")
+        .map((log) => ({
+          event: typeof log.event === "string" ? log.event : "violation",
+          message: log.message.trim(),
+          occurredAt:
+            log.occurredAt && !Number.isNaN(new Date(log.occurredAt).getTime())
+              ? new Date(log.occurredAt)
+              : new Date(),
+        }))
+        .filter((log) => Boolean(log.message))
+    : [];
+
   const submission = await ExamSubmission.create({
     exam: id,
     candidate: req.user._id,
-    mcqAnswers: mcqList,
-    shortAnswers: shortList,
+    mcqAnswers: normalizedMcqAnswers,
+    shortAnswers: normalizedShortAnswers,
+    warningLogs: normalizedWarningLogs,
+    totalViolations: normalizedWarningLogs.length,
+    autoSubmitted: Boolean(autoSubmitted),
     isSubmitted: true,
   });
 
@@ -228,10 +282,18 @@ export const getSubmissionById = asyncHandler(async (req, res) => {
   }
 
   const isCandidate = req.user.role === "candidate";
+  const isTeacher = req.user.role === "teacher";
   const isOwner =
     String(submission.candidate._id) === String(req.user._id);
 
   if (isCandidate && !isOwner) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+  if (
+    isTeacher &&
+    String(submission.exam?.createdBy) !== String(req.user._id)
+  ) {
     res.status(403);
     throw new Error("Not authorized");
   }

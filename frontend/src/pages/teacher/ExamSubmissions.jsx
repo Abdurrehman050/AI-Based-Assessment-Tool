@@ -78,6 +78,7 @@ export default function ExamSubmissions() {
                 <th className="px-4 py-2">Score</th>
                 <th className="px-4 py-2">Graded</th>
                 <th className="px-4 py-2">AI Checked</th>
+                <th className="px-4 py-2">Violations</th>
                 <th className="px-4 py-2">Submitted At</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
@@ -93,6 +94,7 @@ export default function ExamSubmissions() {
                   <td className="px-4 py-2">{s.score ?? 0}</td>
                   <td className="px-4 py-2">{s.isGraded ? "Yes" : "No"}</td>
                   <td className="px-4 py-2">{s.checkedByAI ? "Yes" : "No"}</td>
+                  <td className="px-4 py-2">{s.totalViolations ?? 0}</td>
                   <td className="px-4 py-2">
                     {new Date(s.createdAt).toLocaleString()}
                   </td>

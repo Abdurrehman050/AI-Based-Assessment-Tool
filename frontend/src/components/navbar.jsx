@@ -8,6 +8,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [avatarMenu, setAvatarMenu] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -21,9 +22,23 @@ export default function Navbar() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 20);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <nav className="fixed w-full z-50 bg-soft/95 backdrop-blur-md shadow-md font-sans">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <nav className="fixed top-0 left-0 w-full z-50 font-sans">
+      <div
+        className={`transition-all duration-300 ease-out ${
+          isScrolled
+            ? "max-w-6xl mx-auto mt-4 rounded-2xl bg-white/20 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.18)] border border-white/30 ring-1 ring-white/20"
+            : "max-w-none mx-auto bg-white/10 backdrop-blur-lg border-b border-white/20"
+        }`}
+      >
+        <div className="px-6 py-4 flex justify-between items-center">
         {/* Logo */}
         <Link
           to="/"
@@ -194,112 +209,121 @@ export default function Navbar() {
             </svg>
           </button>
         </div>
+        </div>
       </div>
 
       {/* Mobile Menu */}
       {isOpen && (
-        <ul className="md:hidden bg-soft/95 backdrop-blur-md px-6 py-4 space-y-3 shadow-lg animate-slide-down">
-          {!user && (
-            <>
-              <li>
-                <Link
-                  to="/candidate/login"
-                  className="block px-4 py-2 rounded-lg bg-accent text-white font-medium shadow hover:brightness-90 transition"
-                >
-                  Candidate Login
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/teacher/login"
-                  className="block px-4 py-2 rounded-lg bg-primary text-white font-medium shadow hover:bg-primary/90 transition"
-                >
-                  Teacher Login
-                </Link>
-              </li>
-            </>
-          )}
+        <div
+          className={`md:hidden transition-all duration-300 ease-out ${
+            isScrolled
+              ? "max-w-6xl mx-auto mt-3 rounded-2xl bg-white/20 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.18)] border border-white/30 ring-1 ring-white/20"
+              : "max-w-none mx-auto bg-white/15 backdrop-blur-lg border-b border-white/20"
+          }`}
+        >
+          <ul className="px-6 py-4 space-y-3 animate-slide-down">
+            {!user && (
+              <>
+                <li>
+                  <Link
+                    to="/candidate/login"
+                    className="block px-4 py-2 rounded-lg bg-accent text-white font-medium shadow hover:brightness-90 transition"
+                  >
+                    Candidate Login
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/teacher/login"
+                    className="block px-4 py-2 rounded-lg bg-primary text-white font-medium shadow hover:bg-primary/90 transition"
+                  >
+                    Teacher Login
+                  </Link>
+                </li>
+              </>
+            )}
 
-          {user?.role === "candidate" && (
-            <>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/candidate/dashboard"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/candidate/exams"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  Exams
-                </Link>
-              </li>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/candidate/submissions"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  Submissions
-                </Link>
-              </li>
-              <li>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
-                >
-                  Logout
-                </button>
-              </li>
-            </>
-          )}
+            {user?.role === "candidate" && (
+              <>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/candidate/dashboard"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/candidate/exams"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    Exams
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/candidate/submissions"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    Submissions
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                  >
+                    Logout
+                  </button>
+                </li>
+              </>
+            )}
 
-          {user?.role === "teacher" && (
-            <>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/teacher/dashboard"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/teacher/createexams"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  Create Exams
-                </Link>
-              </li>
-              <li>
-                <Link
-                  onClick={() => setIsOpen(false)}
-                  to="/teacher/viewsubissions"
-                  className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
-                >
-                  View Submissions
-                </Link>
-              </li>
-              <li>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
-                >
-                  Logout
-                </button>
-              </li>
-            </>
-          )}
-        </ul>
+            {user?.role === "teacher" && (
+              <>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/teacher/dashboard"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/teacher/createexams"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    Create Exams
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    onClick={() => setIsOpen(false)}
+                    to="/teacher/viewsubissions"
+                    className="block px-3 py-2 rounded-lg text-primary font-medium hover:bg-primary/10 transition"
+                  >
+                    View Submissions
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-center px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                  >
+                    Logout
+                  </button>
+                </li>
+              </>
+            )}
+          </ul>
+        </div>
       )}
     </nav>
   );

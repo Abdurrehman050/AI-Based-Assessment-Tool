@@ -32,6 +32,15 @@ const examSubmissionSchema = new Schema(
     isSubmitted: { type: Boolean, default: false },
     isGraded: { type: Boolean, default: false },
     feedback: { type: String },
+    warningLogs: [
+      {
+        event: { type: String, default: "violation" },
+        message: { type: String, required: true },
+        occurredAt: { type: Date, default: Date.now },
+      },
+    ],
+    totalViolations: { type: Number, default: 0 },
+    autoSubmitted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

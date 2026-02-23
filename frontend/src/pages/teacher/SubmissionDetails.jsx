@@ -55,7 +55,15 @@ export default function SubmissionDetails() {
   if (error) return <p className="p-6 text-center text-red-600">{error}</p>;
   if (!submission) return null;
 
-  const { candidate, exam, mcqAnswers = [], shortAnswers = [] } = submission;
+  const {
+    candidate,
+    exam,
+    mcqAnswers = [],
+    shortAnswers = [],
+    warningLogs = [],
+    totalViolations = 0,
+    autoSubmitted = false,
+  } = submission;
 
   // Compute MCQ scores
   const mcqScore = mcqAnswers.reduce((acc, a) => {
@@ -109,6 +117,12 @@ export default function SubmissionDetails() {
         <p>
           <b>Submitted At:</b> {new Date(submission.createdAt).toLocaleString()}
         </p>
+        <p>
+          <b>Auto Submitted:</b> {autoSubmitted ? "Yes" : "No"}
+        </p>
+        <p>
+          <b>Violations:</b> {totalViolations}
+        </p>
 
         {/* ✅ Obtained marks / Total marks */}
         <p>
@@ -123,6 +137,28 @@ export default function SubmissionDetails() {
           {totalMarks > 0 ? ((totalScore / totalMarks) * 100).toFixed(2) : 0}%
         </p>
       </div>
+
+      {warningLogs.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Security Logs</h2>
+          {warningLogs.map((log, i) => (
+            <div key={i} className="bg-white p-4 rounded-lg shadow mb-3">
+              <p>
+                <b>Event:</b> {log.event || "violation"}
+              </p>
+              <p>
+                <b>Message:</b> {log.message}
+              </p>
+              <p>
+                <b>Time:</b>{" "}
+                {log.occurredAt
+                  ? new Date(log.occurredAt).toLocaleString()
+                  : "-"}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* MCQ Answers */}
       {mcqAnswers.length > 0 && (

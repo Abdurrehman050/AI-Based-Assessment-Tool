@@ -14,11 +14,12 @@ export default function ExamPortal() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState("");
-  const [violations, setViolations] = useState(0);
 
   // Refs
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
+  const violationsRef = useRef(0);
+  const warningLogsRef = useRef([]);
 
   /* ================= LOAD EXAM ================= */
   useEffect(() => {
@@ -56,20 +57,27 @@ export default function ExamPortal() {
   }, [loading, timeLeft]);
 
   /* ================= SECURITY ================= */
-  const handleViolation = () => {
+  const handleViolation = (message) => {
     if (autoSubmittedRef.current) return;
 
-    setViolations((v) => {
-      const newV = v + 1;
-      if (newV === 3) {
-        submitExam(true);
-      } else {
-        setWarning(
-          `Warning ${newV}/3: You cannot switch tabs or leave the exam page.`,
-        );
-      }
-      return newV;
-    });
+    const log = {
+      event: "violation",
+      message: message || "Suspicious activity detected",
+      occurredAt: new Date().toISOString(),
+    };
+
+    warningLogsRef.current = [...warningLogsRef.current, log];
+    violationsRef.current += 1;
+    const nextViolations = violationsRef.current;
+
+    if (nextViolations >= 3) {
+      submitExam(true);
+      return;
+    }
+
+    setWarning(
+      `Warning ${nextViolations}/3: You cannot switch tabs or leave the exam page.`,
+    );
   };
 
   useExamSecurity(handleViolation);
@@ -111,7 +119,8 @@ export default function ExamPortal() {
         mcqAnswers,
         shortAnswers,
         autoSubmitted: auto,
-        violations,
+        violations: violationsRef.current,
+        warningLogs: warningLogsRef.current,
       });
 
       setWarning(
