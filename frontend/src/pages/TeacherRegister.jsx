@@ -17,6 +17,9 @@ export default function TeacherRegister() {
   function validate() {
     const e = {};
     if (!form.username.trim()) e.username = "Username is required";
+    else if (!/^[A-Za-z]/.test(form.username.trim())) {
+      e.username = "Username must start with an alphabet letter";
+    }
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Invalid email";
     if (!form.password) e.password = "Password is required";

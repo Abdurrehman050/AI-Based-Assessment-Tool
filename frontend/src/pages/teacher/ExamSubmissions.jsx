@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import {
   getExamSubmissions,
   gradeSubmissionAI,
-  gradeSubmissionManual,
 } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +12,12 @@ export default function ExamSubmissions() {
   const navigate = useNavigate();
 
   const [submissions, setSubmissions] = useState([]);
+  const [examInfo, setExamInfo] = useState(null);
+  const [stats, setStats] = useState({
+    attemptedCount: 0,
+    gradedCount: 0,
+    averageScore: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [gradingId, setGradingId] = useState(null);
   const [error, setError] = useState("");
@@ -29,7 +34,15 @@ export default function ExamSubmissions() {
     setLoading(true);
     try {
       const res = await getExamSubmissions(examId);
-      setSubmissions(res.data.submissions);
+      setSubmissions(res.data.submissions || []);
+      setExamInfo(res.data.exam || null);
+      setStats(
+        res.data.stats || {
+          attemptedCount: 0,
+          gradedCount: 0,
+          averageScore: 0,
+        },
+      );
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to fetch submissions.");
@@ -59,6 +72,53 @@ export default function ExamSubmissions() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6 text-primary">Exam Submissions</h1>
+
+      {examInfo && (
+        <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">{examInfo.title}</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Key: {examInfo.examKey} | Level: {examInfo.level} | Duration:{" "}
+                {examInfo.duration} min
+              </p>
+              <p className="text-sm text-gray-600">
+                Questions: {examInfo.numMcqs} MCQs, {examInfo.numShorts} Short | Total Marks:{" "}
+                {examInfo.totalMarks}
+              </p>
+            </div>
+            <div className="text-sm text-gray-700">
+              <p>
+                Status:{" "}
+                <span className="font-medium">
+                  {examInfo.isActive ? "Active" : "Inactive"} ({examInfo.status})
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Total Attempted
+              </p>
+              <p className="text-2xl font-bold text-gray-800">{stats.attemptedCount}</p>
+            </div>
+            <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Total Graded</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.gradedCount}</p>
+            </div>
+            <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Average Score (Overall)
+              </p>
+              <p className="text-2xl font-bold text-gray-800">
+                {(stats.averageScore || 0).toFixed(2)} / {examInfo.totalMarks}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>

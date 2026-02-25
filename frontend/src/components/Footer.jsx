@@ -7,9 +7,11 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Project Info */}
           <div>
-            <h3 className="text-xl font-bold text-primary">
-              AI Assessment Tool
-            </h3>
+            <a href="/">
+              <h3 className="text-xl font-bold text-white hover:text-accent cursor-pointer">
+                AI Assessment Tool
+              </h3>
+            </a>
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               An intelligent examination platform that automates assessment,
               enhances academic integrity, and delivers real-time evaluation

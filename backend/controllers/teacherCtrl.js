@@ -22,6 +22,10 @@ const registerTeacher = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("All fields are required");
   }
+  if (!/^[A-Za-z]/.test(String(username).trim())) {
+    res.status(400);
+    throw new Error("Username must start with an alphabet letter");
+  }
 
   const teacherExists = await Teacher.findOne({ email });
   if (teacherExists) {
@@ -33,7 +37,7 @@ const registerTeacher = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   const teacher = await Teacher.create({
-    username,
+    username: String(username).trim(),
     email,
     password: hashedPassword,
     subject,
@@ -549,7 +553,45 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
   }
 
   const submissions = await ExamSubmission.find({ exam: examId }).populate("candidate", "username email").sort({ createdAt: -1 });
-  res.json({ examId, submissions });
+  const attemptedCount = submissions.length;
+  const gradedSubmissions = submissions.filter((s) => s.isGraded);
+  const gradedCount = gradedSubmissions.length;
+  const averageScore =
+    attemptedCount > 0
+      ? submissions.reduce((acc, s) => acc + (Number(s.score) || 0), 0) /
+        attemptedCount
+      : 0;
+
+  const totalMarks =
+    (Array.isArray(exam.questions?.mcqs) ? exam.questions.mcqs.length : 0) * 1 +
+    (Array.isArray(exam.questions?.shortQuestions)
+      ? exam.questions.shortQuestions.length
+      : 0) *
+      2;
+
+  res.json({
+    examId,
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      examKey: exam.examKey,
+      level: exam.level,
+      duration: exam.duration,
+      status: exam.status,
+      isActive: exam.isActive,
+      numMcqs: Array.isArray(exam.questions?.mcqs) ? exam.questions.mcqs.length : 0,
+      numShorts: Array.isArray(exam.questions?.shortQuestions)
+        ? exam.questions.shortQuestions.length
+        : 0,
+      totalMarks,
+    },
+    stats: {
+      attemptedCount,
+      gradedCount,
+      averageScore,
+    },
+    submissions,
+  });
 });
 
 // @desc    Reports: exam-level stats and filtering
@@ -578,6 +620,10 @@ const getExamReports = asyncHandler(async (req, res) => {
         _id: exam._id,
         title: exam.title,
         examKey: exam.examKey,
+        level: exam.level,
+        duration: exam.duration,
+        numMcqs: exam.numMcqs,
+        numShorts: exam.numShorts,
         isActive: exam.isActive,
         attemptedCount: submissions.length,
         gradedCount: gradedSubmissions.length,

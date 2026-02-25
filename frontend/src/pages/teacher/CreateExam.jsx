@@ -20,6 +20,9 @@ export default function CreateExam() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [selectedRubricFile, setSelectedRubricFile] = useState(null);
+  const [rubricUploading, setRubricUploading] = useState(false);
+  const [rubricUploaded, setRubricUploaded] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
@@ -34,6 +37,20 @@ export default function CreateExam() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRubricSelect = (e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedRubricFile(file);
+    setRubricUploaded(false);
+  };
+
+  const handleRubricUpload = async () => {
+    if (!selectedRubricFile) return;
+    setRubricUploading(true);
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    setRubricUploading(false);
+    setRubricUploaded(true);
   };
 
   const handleSubmit = async (e) => {
@@ -59,6 +76,9 @@ export default function CreateExam() {
         numShorts: 2,
         prompt: "",
       });
+      setSelectedRubricFile(null);
+      setRubricUploading(false);
+      setRubricUploaded(false);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to create exam.");
@@ -180,12 +200,52 @@ export default function CreateExam() {
           ></textarea>
         </div>
 
+        {/* Rubric Upload (UI-only) */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="block font-medium mb-2">
+            Rubric File (Teacher Reference)
+          </label>
+          <p className="text-sm text-gray-500 mb-3">
+            Upload a rubric document for review context.
+          </p>
+
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.txt,.md"
+            onChange={handleRubricSelect}
+            className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-primary/80"
+          />
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleRubricUpload}
+              disabled={!selectedRubricFile || rubricUploading}
+              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/80 disabled:opacity-60 transition"
+            >
+              {rubricUploading ? "Uploading..." : "Upload Rubric"}
+            </button>
+
+            <span className="text-sm text-gray-600">
+              {selectedRubricFile
+                ? `Selected: ${selectedRubricFile.name}`
+                : "No file selected"}
+            </span>
+          </div>
+
+          {rubricUploaded && (
+            <p className="mt-2 text-sm text-green-700">
+              Rubric uploaded successfully (reference only).
+            </p>
+          )}
+        </div>
+
         {/* Success Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 text-center">
               <h2 className="text-2xl font-bold text-primary mb-3">
-                Exam Created Successfully 🎉
+                Exam Created Successfully.
               </h2>
 
               <p className="text-gray-600 mb-6">
