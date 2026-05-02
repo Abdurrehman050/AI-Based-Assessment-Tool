@@ -92,6 +92,7 @@ const loginTeacher = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     message: "Login successful",
+    token,
     teacher: {
       _id: teacher._id,
       username: teacher.username,
@@ -189,11 +190,14 @@ const createExam = asyncHandler(async (req, res) => {
   }
 
   function extractJSON(text) {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) {
+    // Look for the first { and the last }
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
       throw new Error("AI did not return valid JSON");
     }
-    return JSON.parse(match[0]);
+    const jsonString = text.substring(firstBrace, lastBrace + 1);
+    return JSON.parse(jsonString);
   }
 
   let generatedExam;
@@ -350,20 +354,20 @@ Input: ${JSON.stringify(shortItems, null, 2)}
     contents: aiPrompt
   });
 
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = result.text;
   if (!text) throw new Error("Failed to read AI response text");
 
   // 5️⃣ SAFE JSON parsing
   function parseAIJSON(raw) {
     let clean = raw.trim();
-    // Remove ```json or ``` blocks
-    if (clean.startsWith("```")) {
-      clean = clean.replace(/```json?/, "").replace(/```$/, "").trim();
+    // Look for the first [ and the last ]
+    const firstBracket = clean.indexOf("[");
+    const lastBracket = clean.lastIndexOf("]");
+    if (firstBracket === -1 || lastBracket === -1 || lastBracket < firstBracket) {
+      throw new Error("AI did not return valid JSON");
     }
-    // Extract first array from text
-    const match = clean.match(/\[.*\]/s);
-    if (!match) throw new Error("AI did not return valid JSON");
-    return JSON.parse(match[0]);
+    const jsonString = clean.substring(firstBracket, lastBracket + 1);
+    return JSON.parse(jsonString);
   }
 
   let grades;
@@ -559,7 +563,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
   const averageScore =
     attemptedCount > 0
       ? submissions.reduce((acc, s) => acc + (Number(s.score) || 0), 0) /
-        attemptedCount
+      attemptedCount
       : 0;
 
   const totalMarks =
@@ -567,7 +571,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
     (Array.isArray(exam.questions?.shortQuestions)
       ? exam.questions.shortQuestions.length
       : 0) *
-      2;
+    2;
 
   res.json({
     examId,

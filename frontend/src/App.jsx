@@ -32,7 +32,7 @@ export default function App() {
     <AuthProvider>
       <div className="min-h-screen bg-soft text-primary flex flex-col">
         <Navbar />
-        <main className="container pt-24 mx-auto px-6 py-10 flex-grow">
+        <main className="pt-24 flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/candidate/register" element={<CandidateRegister />} />

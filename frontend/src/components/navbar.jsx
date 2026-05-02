@@ -52,8 +52,8 @@ export default function Navbar() {
             />
           </div>
 
-          <span className="ml-5 text-2xl md:text-3xl font-extrabold text-primary leading-none hover:text-accent">
-            AI Assessment
+          <span className="ml-5 text-2xl md:text-3xl font-black font-display text-primary leading-none group-hover:text-accent transition-colors">
+            AI <span className="text-accent">ASSESSMENT</span>
           </span>
         </Link>
 

@@ -9,8 +9,21 @@ export default function ExamPortal() {
 
   // State
   const [exam, setExam] = useState(null);
-  const [currentQ, setCurrentQ] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [currentQ, setCurrentQ] = useState(() => {
+    const saved = localStorage.getItem(`exam_current_q_${examId}`);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [answers, setAnswers] = useState(() => {
+    const saved = localStorage.getItem(`exam_answers_${examId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    if (examId) {
+      localStorage.setItem(`exam_answers_${examId}`, JSON.stringify(answers));
+      localStorage.setItem(`exam_current_q_${examId}`, currentQ.toString());
+    }
+  }, [answers, currentQ, examId]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState("");
@@ -29,6 +42,7 @@ export default function ExamPortal() {
   const autoSubmittedRef = useRef(false);
   const violationsRef = useRef(0);
   const warningLogsRef = useRef([]);
+  const maxViolations = 1;
 
   /* ================= LOAD EXAM ================= */
   useEffect(() => {
@@ -123,13 +137,13 @@ export default function ExamPortal() {
     violationsRef.current += 1;
     const nextViolations = violationsRef.current;
 
-    if (nextViolations >= 3) {
+    if (nextViolations >= maxViolations) {
       submitExam(true);
       return;
     }
 
     setWarning(
-      `Warning ${nextViolations}/3: You cannot switch tabs or leave the exam page.`,
+      `Warning ${nextViolations}/${maxViolations}: You cannot switch tabs or leave the exam page.`,
     );
   };
 
@@ -181,6 +195,10 @@ export default function ExamPortal() {
         warningLogs: warningLogsRef.current,
       });
 
+      // Clear local storage on success
+      localStorage.removeItem(`exam_answers_${examId}`);
+      localStorage.removeItem(`exam_current_q_${examId}`);
+
       setWarning(
         auto
           ? "You have exceeded the allowed violations. Exam submitted automatically. Redirecting to dashboard..."
@@ -214,27 +232,22 @@ export default function ExamPortal() {
   }, [loading, exam]);
 
   /* ================= NAVIGATION ================= */
-  const totalQuestions =
-    exam?.questions?.mcqs?.length + exam?.questions?.shortQuestions?.length ||
-    0;
+  const allQuestions = [
+    ...(exam?.questions?.mcqs || []),
+    ...(exam?.questions?.shortQuestions || []),
+  ];
+  const totalQuestions = allQuestions.length;
   const totalMcqs = exam?.questions?.mcqs?.length || 0;
   const totalShorts = exam?.questions?.shortQuestions?.length || 0;
   const totalMarks = totalMcqs * 1 + totalShorts * 2;
 
-  const currentQuestion = () => {
-    const allQuestions = [
-      ...(exam?.questions?.mcqs || []),
-      ...(exam?.questions?.shortQuestions || []),
-    ];
-    return allQuestions[currentQ];
-  };
+  const question = allQuestions[currentQ];
 
   /* ================= UI ================= */
   if (loading) return <p className="p-6 text-center">Loading exam…</p>;
   if (!exam)
     return <p className="p-6 text-center text-red-600">Exam not found.</p>;
 
-  const question = currentQuestion();
   const isMCQ = currentQ < (exam.questions.mcqs?.length || 0);
   const currentQuestionKey = getQuestionKey(question);
   const answeredCount = Object.values(answers).filter(
@@ -283,10 +296,38 @@ export default function ExamPortal() {
           </div>
           <div className="bg-slate-50 rounded-lg p-3 border">
             <p className="font-semibold">Exam Rules</p>
-            <p>Tab switching, right-click, copy/paste are disabled.</p>
+            <p>No backtracking allowed. Each question is final.</p>
           </div>
         </div>
       </div>
+
+      {/* Question Palette */}
+      <div className="w-full max-w-6xl bg-white rounded-xl shadow-md p-4 mb-4">
+        <p className="font-semibold mb-2">Question Palette</p>
+        <div className="flex flex-wrap gap-2">
+          {allQuestions.map((q, idx) => {
+            const key = getQuestionKey(q);
+            const isAnswered = String(answers[key] || "").trim() !== "";
+            const isCurrent = currentQ === idx;
+
+            return (
+              <div
+                key={idx}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-all ${
+                  isCurrent
+                    ? "bg-accent text-white scale-110 shadow-lg ring-2 ring-accent ring-offset-2"
+                    : isAnswered
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-gray-100 text-gray-600 border border-gray-200"
+                }`}
+              >
+                {idx + 1}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {warning && (
         <div className="bg-yellow-100 text-yellow-800 p-3 rounded mb-4 text-center w-full max-w-6xl">
           {warning}
@@ -295,58 +336,74 @@ export default function ExamPortal() {
 
       {/* Question Card */}
       <div className="bg-white shadow-lg rounded-xl p-6 w-full max-w-6xl mb-4">
-        <p className="font-medium mb-4">
-          {currentQ + 1}. {question?.question || "Question not found"}
+        <div className="flex justify-between items-center mb-4">
+          <p className="font-bold text-lg text-primary">
+            Question {currentQ + 1} of {totalQuestions}
+          </p>
+          <span className="px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {isMCQ ? "Multiple Choice" : "Short Answer"}
+          </span>
+        </div>
+        
+        <p className="font-medium text-lg mb-6 leading-relaxed">
+          {question?.question || "Question not found"}
         </p>
 
         {isMCQ ? (
-          <div className="flex flex-col space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {question.options.map((opt, i) => (
-              <label key={i} className="flex items-center">
+              <label 
+                key={i} 
+                className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                  answers[currentQuestionKey] === opt 
+                    ? "border-accent bg-accent/5 ring-1 ring-accent" 
+                    : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"
+                }`}
+              >
                 <input
                   type="radio"
                   name={question._id}
+                  className="w-5 h-5 accent-accent"
                   checked={answers[currentQuestionKey] === opt}
                   onChange={() => handleChange(question._id, opt)}
                 />
-                <span className="ml-2">{opt}</span>
+                <span className="ml-3 text-gray-700 font-medium">{opt}</span>
               </label>
             ))}
           </div>
         ) : (
-          <textarea
-            rows={5}
-            className="w-full border rounded p-2"
-            value={answers[currentQuestionKey] || ""}
-            onChange={(e) => handleChange(question._id, e.target.value)}
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-500">Your Answer:</label>
+            <textarea
+              rows={8}
+              className="w-full border-2 border-slate-100 rounded-xl p-4 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none"
+              placeholder="Type your answer here..."
+              value={answers[currentQuestionKey] || ""}
+              onChange={(e) => handleChange(question._id, e.target.value)}
+            />
+          </div>
         )}
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-4 mb-4">
-        <button
-          disabled={currentQ === 0}
-          onClick={() => setCurrentQ((q) => q - 1)}
-          className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 disabled:opacity-50"
-        >
-          Previous
-        </button>
-        {currentQ < totalQuestions - 1 ? (
-          <button
-            onClick={() => setCurrentQ((q) => q + 1)}
-            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/80"
-          >
-            Next
-          </button>
-        ) : (
-          <button
-            onClick={() => submitExam(false)}
-            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/80"
-          >
-            Submit Exam
-          </button>
-        )}
+      <div className="flex items-center justify-end w-full max-w-6xl mb-10">
+        <div className="flex gap-4">
+          {currentQ < totalQuestions - 1 ? (
+            <button
+              onClick={() => setCurrentQ((q) => q + 1)}
+              className="flex items-center gap-2 px-8 py-3 bg-accent text-white rounded-xl font-semibold hover:brightness-110 shadow-lg shadow-accent/20 transition-all"
+            >
+              Next <span>→</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => submitExam(false)}
+              className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 shadow-lg shadow-green-200 transition-all"
+            >
+              Submit Exam <span>✓</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

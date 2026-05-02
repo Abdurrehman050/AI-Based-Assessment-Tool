@@ -48,7 +48,6 @@ export default function Instructions() {
     `Total marks: ${totalMarks} (${mcqCount} MCQs × 1, ${shortCount} Short × 2).`,
     "Once started, the timer cannot be paused.",
     "Do not refresh the page or navigate away during the exam.",
-    "MCQs are auto-graded, short answers will be graded manually.",
     "Maintain academic integrity. Any violation may result in disqualification.",
   ];
 

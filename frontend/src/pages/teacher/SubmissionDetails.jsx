@@ -208,7 +208,8 @@ export default function SubmissionDetails() {
                   <b>Correct Answer:</b> {q?.answer || "Not provided"}
                 </p>
                 <p className="mt-1">
-                  <b>Score:</b> {a.humanScore ?? a.aiScore ?? 0}/2
+                  <b>Score:</b> {a.humanScore ?? a.aiScore ?? 0}/2{" "}
+                  {(a.humanScore ?? a.aiScore ?? 0) > 0 ? "✅" : "❌"}
                 </p>
                 {a.humanFeedback && (
                   <p className="mt-1 text-gray-600">

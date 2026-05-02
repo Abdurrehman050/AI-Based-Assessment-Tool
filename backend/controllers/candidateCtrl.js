@@ -127,6 +127,7 @@ export const loginCandidate = asyncHandler(async (req, res) => {
 
   res.json({
     message: "Login successful",
+    token,
     candidate: {
       _id: candidate._id,
       username: candidate.username,

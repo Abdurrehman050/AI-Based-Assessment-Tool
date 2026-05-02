@@ -226,6 +226,12 @@ export default function CandidateSubmissionDetails() {
                       <b>Score:</b> {a.humanScore ?? a.aiScore ?? 0}/2
                     </p>
 
+                    <p className="text-sm">
+                      {(a.humanScore ?? a.aiScore ?? 0) > 0
+                        ? "✅ Correct"
+                        : "❌ Incorrect"}
+                    </p>
+
                     {a.humanFeedback && (
                       <p className="mt-1 text-gray-600">
                         <b>Feedback:</b> {a.humanFeedback}
