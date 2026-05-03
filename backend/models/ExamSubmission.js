@@ -20,13 +20,27 @@ const examSubmissionSchema = new Schema(
       {
         questionId: { type: Schema.Types.ObjectId },
         answerText: { type: String },
+        aiScore: { type: Number, default: null },
+        aiFeedback: { type: String, default: "" },
+        humanScore: { type: Number, default: null },
+        humanFeedback: { type: String, default: "" },
       },
     ],
+    gradedBy: { type: Schema.Types.ObjectId, ref: "Teacher", default: null },
     score: { type: Number, default: 0 },
     checkedByAI: { type: Boolean, default: false },
     isSubmitted: { type: Boolean, default: false },
     isGraded: { type: Boolean, default: false },
     feedback: { type: String },
+    warningLogs: [
+      {
+        event: { type: String, default: "violation" },
+        message: { type: String, required: true },
+        occurredAt: { type: Date, default: Date.now },
+      },
+    ],
+    totalViolations: { type: Number, default: 0 },
+    autoSubmitted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

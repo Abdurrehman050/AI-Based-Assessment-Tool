@@ -2,36 +2,43 @@
 import jwt from "jsonwebtoken";
 import Candidate from "../models/Candidate.js";
 import Teacher from "../models/Teacher.js";
+
 import asyncHandler from "express-async-handler";
 
 const isAuth = asyncHandler(async (req, res, next) => {
-  const token =
-    req.cookies?.token || req.header("Authorization")?.replace("Bearer ", "");
+  let token;
+
+  // Get token from cookie or Authorization header
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  } else if (req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
 
   if (!token) {
-    res.status(401);
-    throw new Error("No token provided");
+    return res.status(401).json({ message: "No token provided" });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "mySecretKey");
 
+    // Fetch user based on role
     if (decoded.role === "teacher") {
       req.user = await Teacher.findById(decoded.id).select("-password");
     } else if (decoded.role === "candidate") {
       req.user = await Candidate.findById(decoded.id).select("-password");
+    } else {
+      return res.status(401).json({ message: "Invalid user role" });
     }
 
     if (!req.user) {
-      res.status(404);
-      throw new Error("User not found");
+      return res.status(404).json({ message: "User not found" });
     }
 
     next();
-  } catch (error) {
-    console.error("Auth error:", error);
-    res.status(401);
-    throw new Error("Invalid or expired token");
+  } catch (err) {
+    console.error("Auth error:", err);
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 });
 
