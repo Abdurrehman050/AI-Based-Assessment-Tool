@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
-import { getExamReports, gradeExamAI, deleteExam } from "../../services/api";
+import { getExamReports, gradeExamAI, deleteExam, toggleExamStatus } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
-import { FiTrash2 } from "react-icons/fi";
+import { FiTrash2, FiPower } from "react-icons/fi";
 
 export default function ManageExams() {
   const { user, loading: authLoading } = useContext(AuthContext);
@@ -9,6 +9,7 @@ export default function ManageExams() {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gradingId, setGradingId] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
 
@@ -51,6 +52,19 @@ export default function ManageExams() {
       alert(err.response?.data?.message || "Failed to grade exam.");
     } finally {
       setGradingId(null);
+    }
+  };
+
+  const handleToggleStatus = async (examId) => {
+    setTogglingId(examId);
+    try {
+      await toggleExamStatus(examId);
+      fetchExams();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to update exam status.");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -108,9 +122,20 @@ export default function ManageExams() {
                 <h2 className="text-xl font-semibold text-primary mb-1">
                   {exam.title}
                 </h2>
-                <p className="text-sm font-mono text-gray-600">
-                  Key: {exam.examKey}
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-sm font-mono text-gray-600">
+                    Key: {exam.examKey}
+                  </p>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      exam.isActive
+                        ? "bg-green-100 text-green-700 border border-green-200"
+                        : "bg-red-100 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    {exam.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-600">
                   Difficulty: {exam.level}
                 </p>
@@ -127,6 +152,23 @@ export default function ManageExams() {
               </div>
 
               <div className="flex gap-2">
+                <button
+                  onClick={() => handleToggleStatus(exam._id)}
+                  disabled={togglingId === exam._id}
+                  className={`flex-1 px-4 py-2 flex items-center justify-center gap-2 rounded-lg font-medium transition ${
+                    exam.isActive
+                      ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                      : "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
+                  } disabled:opacity-50`}
+                >
+                  <FiPower size={16} />
+                  {togglingId === exam._id
+                    ? "Updating..."
+                    : exam.isActive
+                      ? "Deactivate"
+                      : "Activate"}
+                </button>
+
                 <button
                   onClick={() => handleQuickGrade(exam._id)}
                   disabled={gradingId === exam._id}

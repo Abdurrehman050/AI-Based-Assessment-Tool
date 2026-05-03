@@ -13,6 +13,7 @@ import {
   getSubmissionReports,
   getExamPreview,
   approveExam,
+  toggleExamStatus,
   deleteExamController,
 } from "../controllers/teacherCtrl.js";
 import isAuthenticated from "../middlewares/isAuth.js";
@@ -35,6 +36,7 @@ router.get("/reports/submissions", isAuthenticated, getSubmissionReports);
 router.post("/logout", isAuthenticated, logoutTeacher);
 router.get("/exams/:id/preview", isAuthenticated, getExamPreview);
 router.patch("/exams/:id/approve", isAuthenticated, approveExam);
+router.patch("/exams/:id/toggle-status", isAuthenticated, toggleExamStatus);
 router.delete("/exams/:id", isAuthenticated, deleteExamController);
 
 

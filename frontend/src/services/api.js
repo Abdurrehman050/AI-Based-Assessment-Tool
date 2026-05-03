@@ -87,6 +87,7 @@ export const previewExam = (examId) => {
 export const getCandidateSubmissions = () =>
   api.get("/api/v1/candidates/submissions");
 export const deleteExam = (examId) => api.delete(`/api/v1/teachers/exams/${examId}`);
+export const toggleExamStatus = (examId) => api.patch(`/api/v1/teachers/exams/${examId}/toggle-status`);
 
 /* ======================
    Admin

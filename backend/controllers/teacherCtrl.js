@@ -265,8 +265,32 @@ const approveExam = asyncHandler(async (req, res) => {
 
   res.json({ message: "Exam approved and active", exam });
 });
+
+const toggleExamStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid exam ID" });
+  }
+
+  const exam = await Exam.findOne({ _id: id, createdBy: req.user._id });
+
+  if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+  exam.isActive = !exam.isActive;
+  // If we are activating, ensure status is published
+  if (exam.isActive) {
+    exam.status = "published";
+  }
+  await exam.save();
+
+  res.json({
+    message: `Exam ${exam.isActive ? "activated" : "deactivated"}`,
+    exam,
+  });
+});
 //delete
-export const deleteExamController = asyncHandler(async (req, res) => {
+const deleteExamController = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -302,102 +326,152 @@ async function doGradeSubmission(submission, teacherId) {
     ? submission.exam
     : await Exam.findById(submission.exam);
 
+  if (!exam) throw new Error("Exam not found for this submission");
+
   // 1️⃣ Score MCQs
   let mcqScore = 0;
   if (Array.isArray(submission.mcqAnswers) && Array.isArray(exam.questions?.mcqs)) {
     for (const ans of submission.mcqAnswers) {
       const q = exam.questions.mcqs.find(x => String(x._id) === String(ans.questionId));
-      if (q && ans.selectedOption === q.answer) mcqScore += 1;
-    }
-  }
-
-  // 2️⃣ Prepare short answers
-  const shortItems = [];
-  if (Array.isArray(submission.shortAnswers) && Array.isArray(exam.questions?.shortQuestions)) {
-    for (const sa of submission.shortAnswers) {
-      const q = exam.questions.shortQuestions.find(x => String(x._id) === String(sa.questionId));
-      if (q) {
-        shortItems.push({
-          questionId: String(sa.questionId),
-          question: q.question,
-          studentAnswer: sa.answerText || "",
-          modelAnswer: q.answer || "",
-        });
+      if (q && String(ans.selectedOption).trim() === String(q.answer).trim()) {
+        mcqScore += 1;
       }
     }
   }
 
-  // 3️⃣ If no short answers, finalize
+  // 2️⃣ Prepare short answers & check for exact matches
+  const shortItems = [];
+  let exactMatchScore = 0;
+
+  if (Array.isArray(submission.shortAnswers) && Array.isArray(exam.questions?.shortQuestions)) {
+    for (const sa of submission.shortAnswers) {
+      const q = exam.questions.shortQuestions.find(x => String(x._id) === String(sa.questionId));
+      if (q) {
+        const studentAns = (sa.answerText || "").trim();
+        const modelAns = (q.answer || "").trim();
+
+        // 💡 FALLBACK: If exact match (case-insensitive), pre-grade it to 2 points
+        if (studentAns.toLowerCase() === modelAns.toLowerCase() && studentAns !== "") {
+          sa.aiScore = 2;
+          sa.aiFeedback = "Exact match with model answer.";
+          exactMatchScore += 2;
+          console.log(`[Grading] Exact match found for question ${sa.questionId}. Awarded 2 points.`);
+        } else {
+          shortItems.push({
+            questionId: String(sa.questionId),
+            question: q.question,
+            studentAnswer: studentAns,
+            modelAnswer: modelAns,
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`[Grading] Submission ${submission._id}: ${shortItems.length} questions remaining for AI, ${exactMatchScore} pts from exact matches.`);
+
+  // 3️⃣ If no more questions for AI, finalize
   if (shortItems.length === 0) {
-    submission.score = mcqScore;
+    submission.score = mcqScore + exactMatchScore;
     submission.checkedByAI = true;
     submission.isGraded = true;
     submission.gradedBy = teacherId;
+    submission.markModified("shortAnswers");
     await submission.save();
     return submission;
   }
 
-  // 4️⃣ Call AI
+  // 4️⃣ Call AI for remaining items
   const ai = await getGeminiClient();
   const aiPrompt = `
-You are an expert grader. Grade each short answer against the model answer.
-Each question is worth 1 point. Return ONLY a valid JSON array.
-No explanations or text outside JSON.
+You are an expert academic grader. Grade the following student answers against the model answers.
+Each question is worth a maximum of 2 points.
 
-Example: [{"questionId":"...","score":1,"feedback":"Good answer"}]
+SCORING CRITERIA:
+- 2 points: Answer is correct and covers the essence of the model answer.
+- 1 point: Answer is partially correct or shows some understanding but is incomplete.
+- 0 points: Answer is incorrect, irrelevant, or empty.
+
+Return your response ONLY as a valid JSON array of objects. Do not include markdown or explanations.
+Format: [{"questionId": "...", "score": 2, "feedback": "..."}]
 
 Input: ${JSON.stringify(shortItems, null, 2)}
 `;
 
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: aiPrompt
+    contents: aiPrompt,
   });
 
-  const text = result.text;
-  if (!text) throw new Error("Failed to read AI response text");
+  const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    console.error("[Grading Error] AI returned empty content:", JSON.stringify(result, null, 2));
+    throw new Error("Failed to read AI response text");
+  }
 
   // 5️⃣ SAFE JSON parsing
   function parseAIJSON(raw) {
     let clean = raw.trim();
-    // Look for the first [ and the last ]
-    const firstBracket = clean.indexOf("[");
-    const lastBracket = clean.lastIndexOf("]");
-    if (firstBracket === -1 || lastBracket === -1 || lastBracket < firstBracket) {
-      throw new Error("AI did not return valid JSON");
+    // Try to find the array first
+    let first = clean.indexOf("[");
+    let last = clean.lastIndexOf("]");
+
+    // If no array, try to find an object
+    if (first === -1) {
+      first = clean.indexOf("{");
+      last = clean.lastIndexOf("}");
     }
-    const jsonString = clean.substring(firstBracket, lastBracket + 1);
+
+    if (first === -1 || last === -1 || last < first) {
+      throw new Error("AI output does not contain valid JSON brackets");
+    }
+
+    const jsonString = clean.substring(first, last + 1);
     return JSON.parse(jsonString);
   }
 
   let grades;
   try {
-    grades = parseAIJSON(text);
+    const parsed = parseAIJSON(text);
+    if (Array.isArray(parsed)) {
+      grades = parsed;
+    } else if (parsed && typeof parsed === "object") {
+      grades = parsed.grades || parsed.results || parsed.data || [parsed];
+    } else {
+      grades = [];
+    }
   } catch (err) {
-    console.error("RAW AI OUTPUT:\n", text);
+    console.error("[Grading Error] RAW AI OUTPUT:\n", text);
     throw new Error("AI did not return valid JSON for grading");
   }
 
-  // 6️⃣ Apply grades
-  let shortScore = 0;
+  // 6️⃣ Apply AI grades
+  let aiTotalScore = 0;
   for (const g of grades) {
-    const idx = submission.shortAnswers.findIndex(s => String(s.questionId) === String(g.questionId));
+    const idx = submission.shortAnswers.findIndex(s => String(s.questionId) === String(g.questionId).trim());
     if (idx !== -1) {
-      const score = typeof g.score === "number" ? g.score : Number(g.score) || 0;
+      // Ensure score is a number and within 0-2
+      let score = Number(g.score);
+      if (isNaN(score)) score = 0;
+      score = Math.max(0, Math.min(2, score));
+
       submission.shortAnswers[idx].aiScore = score;
       submission.shortAnswers[idx].aiFeedback = g.feedback || "";
-      shortScore += score;
+      aiTotalScore += score;
     }
   }
 
   // 7️⃣ Finalize submission
-  submission.score = mcqScore + shortScore;
+  submission.score = mcqScore + exactMatchScore + aiTotalScore;
   submission.checkedByAI = true;
   submission.isGraded = true;
   submission.gradedBy = teacherId;
   submission.feedback = (submission.feedback || "") + "\nAI grading performed";
+
+  submission.markModified("shortAnswers");
   await submission.save();
 
+  console.log(`[Grading] Completed. Total Score: ${submission.score} (MCQ: ${mcqScore}, Exact: ${exactMatchScore}, AI: ${aiTotalScore})`);
   return submission;
 }
 
@@ -499,40 +573,52 @@ const gradeSubmissionManual = asyncHandler(async (req, res) => {
   }
 
   // Apply human grades
-  let shortScore = 0;
   if (Array.isArray(shortGrades)) {
     for (const g of shortGrades) {
       const idx = submission.shortAnswers.findIndex((s) => String(s.questionId) === String(g.questionId));
       if (idx !== -1) {
-        const score = typeof g.score === "number" ? g.score : Number(g.score) || 0;
-        submission.shortAnswers[idx].humanScore = score;
-        submission.shortAnswers[idx].humanFeedback = g.feedback || "";
+        // Only update if a score was actually provided
+        if (g.score !== undefined && g.score !== null) {
+          const score = Number(g.score);
+          submission.shortAnswers[idx].humanScore = isNaN(score) ? 0 : score;
+          submission.shortAnswers[idx].humanFeedback = g.feedback || "";
+        }
       }
     }
   }
+
+  // 🔴 IMPORTANT: Tell Mongoose the nested array changed
+  submission.markModified("shortAnswers");
 
   // compute MCQ score
   let mcqScore = 0;
   if (Array.isArray(submission.mcqAnswers) && Array.isArray(exam.questions?.mcqs)) {
     for (const ans of submission.mcqAnswers) {
       const q = exam.questions.mcqs.find((x) => String(x._id) === String(ans.questionId));
-      if (q && ans.selectedOption === q.answer) mcqScore += 1;
+      if (q && String(ans.selectedOption).trim() === String(q.answer).trim()) {
+        mcqScore += 1;
+      }
     }
   }
 
   // compute short score: prefer humanScore if provided, else aiScore
+  let shortScore = 0;
   for (const s of submission.shortAnswers) {
-    if (typeof s.humanScore === "number") shortScore += s.humanScore;
-    else if (typeof s.aiScore === "number") shortScore += s.aiScore;
+    if (typeof s.humanScore === "number" && s.humanScore !== null) {
+      shortScore += s.humanScore;
+    } else if (typeof s.aiScore === "number" && s.aiScore !== null) {
+      shortScore += s.aiScore;
+    }
   }
 
   submission.score = mcqScore + shortScore;
-  submission.checkedByAI = submission.checkedByAI || false;
   submission.isGraded = true;
   submission.gradedBy = req.user._id;
-  submission.feedback = (submission.feedback || "") + "\nManually graded by teacher";
+  submission.feedback = (submission.feedback || "") + `\nManual update at ${new Date().toLocaleString()}`;
+  
   await submission.save();
 
+  console.log(`[Manual Grading] Saved. Total: ${submission.score} (MCQ: ${mcqScore}, Short: ${shortScore})`);
   res.json({ message: "Submission manually graded", submission });
 });
 
@@ -691,4 +777,4 @@ const getSubmissionReports = asyncHandler(async (req, res) => {
 });
 
 
-export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports, getExamPreview, approveExam };
+export { registerTeacher, loginTeacher, getProfile, createExam, logoutTeacher, gradeSubmissionAI, gradeExamSubmissionsAI, gradeSubmissionManual, getExamSubmissions, getExamReports, getSubmissionReports, getExamPreview, approveExam, toggleExamStatus, deleteExamController };

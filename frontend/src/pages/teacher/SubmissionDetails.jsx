@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getSubmissionById, gradeSubmissionAI } from "../../services/api";
+import {
+  getSubmissionById,
+  gradeSubmissionAI,
+  gradeSubmissionManual,
+} from "../../services/api";
 
 export default function SubmissionDetails() {
   const { submissionId } = useParams();
@@ -9,13 +13,28 @@ export default function SubmissionDetails() {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [grading, setGrading] = useState(false); // ✅ AI grading in progress
+  const [saving, setSaving] = useState(false); // ✅ Manual grading in progress
   const [error, setError] = useState("");
+
+  // Local state for manual grades
+  const [manualGrades, setManualGrades] = useState({});
 
   // Fetch submission
   const fetchSubmission = async () => {
     try {
       const res = await getSubmissionById(submissionId);
-      setSubmission(res.data.submission);
+      const sub = res.data.submission;
+      setSubmission(sub);
+
+      // Initialize manual grades from existing data
+      const initialGrades = {};
+      sub.shortAnswers.forEach((a) => {
+        initialGrades[a.questionId] = {
+          score: a.humanScore ?? a.aiScore ?? 0,
+          feedback: a.humanFeedback ?? a.aiFeedback ?? "",
+        };
+      });
+      setManualGrades(initialGrades);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to load submission");
@@ -27,6 +46,41 @@ export default function SubmissionDetails() {
   useEffect(() => {
     fetchSubmission();
   }, [submissionId]);
+
+  // Handle manual grade change
+  const handleManualChange = (qId, field, value) => {
+    setManualGrades((prev) => ({
+      ...prev,
+      [qId]: {
+        ...prev[qId],
+        [field]: value,
+      },
+    }));
+  };
+
+  // Handle Manual save
+  const handleSaveManual = async () => {
+    try {
+      setSaving(true);
+      // Format data for backend: { shortAnswers: [{ questionId, score, feedback }] }
+      const data = {
+        shortAnswers: Object.entries(manualGrades).map(([qId, val]) => ({
+          questionId: qId,
+          score: Number(val.score),
+          feedback: val.feedback,
+        })),
+      };
+
+      const res = await gradeSubmissionManual(submissionId, data);
+      setSubmission(res.data.submission);
+      alert("Manual grading saved!");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to save manual grades");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Handle AI grading
   const handleGradeAI = async () => {
@@ -40,7 +94,19 @@ export default function SubmissionDetails() {
     try {
       setGrading(true);
       const res = await gradeSubmissionAI(submissionId);
-      setSubmission(res.data.submission); // update with graded data
+      const sub = res.data.submission;
+      setSubmission(sub); 
+      
+      // ✅ Sync manual grades state with AI results
+      const updatedGrades = {};
+      sub.shortAnswers.forEach(a => {
+        updatedGrades[a.questionId] = {
+          score: a.humanScore ?? a.aiScore ?? 0,
+          feedback: a.humanFeedback ?? a.aiFeedback ?? ""
+        };
+      });
+      setManualGrades(updatedGrades);
+
       alert("AI grading completed!");
     } catch (err) {
       console.error(err);
@@ -190,51 +256,137 @@ export default function SubmissionDetails() {
 
       {/* Short Answers */}
       {shortAnswers.length > 0 && (
-        <div>
+        <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Short Answers</h2>
           {shortAnswers.map((a, i) => {
             const q = exam.questions.shortQuestions.find(
               (q) => String(q._id) === String(a.questionId),
             );
+            const mGrade = manualGrades[a.questionId] || {
+              score: 0,
+              feedback: "",
+            };
+
             return (
-              <div key={i} className="bg-white p-4 rounded-lg shadow mb-3">
-                <p className="font-medium">
+              <div
+                key={i}
+                className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-4 hover:shadow-md transition"
+              >
+                <p className="font-semibold text-lg text-gray-800">
                   {i + 1}. {q?.question || "Question not found"}
                 </p>
-                <p className="mt-1 whitespace-pre-line">
-                  <b>Answer:</b> {a.answerText || "No answer"}
-                </p>
-                <p className="mt-1">
-                  <b>Correct Answer:</b> {q?.answer || "Not provided"}
-                </p>
-                <p className="mt-1">
-                  <b>Score:</b> {a.humanScore ?? a.aiScore ?? 0}/2{" "}
-                  {(a.humanScore ?? a.aiScore ?? 0) > 0 ? "✅" : "❌"}
-                </p>
-                {a.humanFeedback && (
-                  <p className="mt-1 text-gray-600">
-                    <b>Human Feedback:</b> {a.humanFeedback}
-                  </p>
-                )}
-                {!a.humanFeedback && a.aiFeedback && (
-                  <p className="mt-1 text-gray-600">
-                    <b>AI Feedback:</b> {a.aiFeedback}
-                  </p>
+
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Student's Answer
+                    </p>
+                    <p className="mt-1 p-3 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-line border border-gray-200">
+                      {a.answerText || "No answer provided"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Model Answer
+                    </p>
+                    <p className="mt-1 p-3 bg-blue-50 rounded-lg text-blue-800 whitespace-pre-line border border-blue-100">
+                      {q?.answer || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                  <div className="w-full md:w-32">
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                      Score (0-2)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.5"
+                      value={mGrade.score}
+                      onChange={(e) =>
+                        handleManualChange(
+                          a.questionId,
+                          "score",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition outline-none"
+                    />
+                  </div>
+
+                  <div className="flex-1 w-full">
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                      Feedback
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Add specific feedback for this answer..."
+                      value={mGrade.feedback}
+                      onChange={(e) =>
+                        handleManualChange(
+                          a.questionId,
+                          "feedback",
+                          e.target.value,
+                        )
+                      }
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end md:self-center">
+                    {(submission.checkedByAI || a.humanScore !== null) && (
+                      <span
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                          (a.humanScore ?? a.aiScore ?? 0) > 0
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {(a.humanScore ?? a.aiScore ?? 0) > 0
+                          ? "✅ Graded"
+                          : "❌ Graded"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI info if available and not manually overridden yet in DB */}
+                {!a.humanScore && a.aiScore !== undefined && (
+                  <div className="mt-3 text-sm flex gap-4 text-gray-500 italic">
+                    <p>AI Score: {a.aiScore}/2</p>
+                    <p>AI Feedback: {a.aiFeedback || "None"}</p>
+                  </div>
                 )}
               </div>
             );
           })}
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={handleSaveManual}
+              disabled={saving}
+              className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/20 transition disabled:opacity-50"
+            >
+              {saving ? "Saving Grades..." : "Save Manual Grades ✓"}
+            </button>
+          </div>
         </div>
       )}
+
       {/* AI Grade button, only if not yet AI graded */}
       {!submission.checkedByAI && (
-        <button
-          onClick={handleGradeAI}
-          disabled={grading}
-          className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/80 disabled:opacity-50"
-        >
-          {grading ? "Grading..." : "Grade by AI"}
-        </button>
+        <div className="mt-10 p-6 bg-accent/5 border border-accent/20 rounded-2xl text-center">
+          <button
+            onClick={handleGradeAI}
+            disabled={grading}
+            className="px-8 py-3 bg-accent text-white font-bold rounded-xl hover:bg-accent/90 shadow-lg shadow-accent/20 transition disabled:opacity-50"
+          >
+            {grading ? "Grading..." : "Grade with AI"}
+          </button>
+        </div>
       )}
     </div>
   );

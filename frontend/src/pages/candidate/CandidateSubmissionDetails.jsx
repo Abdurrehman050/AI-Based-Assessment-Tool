@@ -233,12 +233,12 @@ export default function CandidateSubmissionDetails() {
                     </p>
 
                     {a.humanFeedback && (
-                      <p className="mt-1 text-gray-600">
-                        <b>Feedback:</b> {a.humanFeedback}
+                      <p className="mt-1 text-gray-700">
+                        <b>Teacher Feedback:</b> {a.humanFeedback}
                       </p>
                     )}
 
-                    {!a.humanFeedback && a.aiFeedback && (
+                    {a.aiFeedback && (
                       <p className="mt-1 text-gray-600">
                         <b>AI Feedback:</b> {a.aiFeedback}
                       </p>
